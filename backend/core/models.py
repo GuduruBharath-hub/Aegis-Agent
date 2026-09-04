@@ -110,3 +110,32 @@ class BenchmarkRun:
     duration_ms: int | None = None
     correct: bool | None = None
     run_at: str = field(default_factory=utcnow_iso)
+
+
+@dataclass(frozen=True, slots=True)
+class PolicyViolation:
+    rule_id: str
+    message: str
+    path: str | None = None
+    line: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class DiffStats:
+    files_changed: int
+    lines_added: int
+    lines_removed: int
+
+    @property
+    def changed_lines(self) -> int:
+        return self.lines_added + self.lines_removed
+
+
+@dataclass(frozen=True, slots=True)
+class PolicyResult:
+    violations: tuple[PolicyViolation, ...]
+    stats: DiffStats
+
+    @property
+    def passed(self) -> bool:
+        return not self.violations

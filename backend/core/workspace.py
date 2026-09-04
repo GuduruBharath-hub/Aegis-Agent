@@ -5,6 +5,7 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+from typing import Literal
 
 
 _SAFE_JOB_ID = re.compile(r"^[A-Za-z0-9_.-]+$")
@@ -18,9 +19,13 @@ class WorkspaceExistsError(WorkspaceError):
     pass
 
 
-def read_text(path: Path) -> str:
+def read_text(
+    path: Path,
+    *,
+    errors: Literal["strict", "surrogateescape"] = "strict",
+) -> str:
     data = path.read_bytes()
-    return data.decode("utf-8").replace("\r\n", "\n").replace("\r", "\n")
+    return data.decode("utf-8", errors=errors).replace("\r\n", "\n").replace("\r", "\n")
 
 
 def write_text(path: Path, content: str) -> None:

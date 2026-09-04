@@ -73,7 +73,7 @@ The whole loop runs end to end with a **stub** brain. No LLM yet.
       **Done when:** a test writes a file, commits it via git, checks it out, and
       asserts the content hash is unchanged. **Must pass on Windows.**
 
-- [ ] **P2-5 · Validator.** syntax → protected paths → diff scope → AST denylist,
+- [x] **P2-5 · Validator.** syntax → protected paths → diff scope → AST denylist,
       behind `pipeline.py`. §10, §28-equivalent
       **Done when:** tests cover path escapes (`../`, absolute, backslash), each
       denied import, and each diff limit at boundary and boundary+1.
