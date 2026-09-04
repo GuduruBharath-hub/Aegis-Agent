@@ -27,6 +27,7 @@ from backend.storage.repositories import (
 )
 from backend.validator.pipeline import ValidatorPipeline, ValidatorPolicy
 from backend.verification.pipeline import SandboxCandidateVerifier
+from scripts.seed_benchmarks import seed_benchmark_repositories
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -62,6 +63,7 @@ class ApiRuntime:
 
     @classmethod
     def build_default(cls) -> ApiRuntime:
+        seed_benchmark_repositories(PROJECT_ROOT)
         runtime_settings = RuntimeSettings()
         database = Database(_from_project(runtime_settings.db_path))
         connection = database.init_db()
@@ -84,7 +86,6 @@ class ApiRuntime:
             jobs=jobs,
             attempts=attempts,
             artifacts=artifacts,
-            benchmark_runs=benchmark_runs,
             findings=findings,
             events=event_bus,
             workspace=workspace,
@@ -102,6 +103,7 @@ class ApiRuntime:
             findings=findings,
             events=events,
             artifacts=artifacts,
+            benchmark_runs=benchmark_runs,
             event_bus=event_bus,
             runner=orchestrator,
             max_attempts=runtime_settings.max_attempts,

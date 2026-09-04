@@ -26,7 +26,7 @@ interface ApiJob {
   completed_at: string | null;
 }
 
-interface ApiEvent {
+export interface ApiEvent {
   seq: number;
   job_id: string;
   ts: string;
@@ -74,6 +74,11 @@ export async function startJob(request: StartJobRequest): Promise<Job> {
     commit_sha: request.branch ?? 'HEAD',
     mode: 'live',
   });
+  return getJob(data.job_id);
+}
+
+export async function startDemo(scenario: string): Promise<Job> {
+  const { data } = await api.post<{ job_id: string }>(`/api/demo/${scenario}`);
   return getJob(data.job_id);
 }
 

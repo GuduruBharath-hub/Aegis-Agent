@@ -10,6 +10,7 @@ import { RecentActivity } from '@/components/dashboard/RecentActivity';
 import { Modal } from '@/components/ui/Modal';
 import { StartJobForm } from '@/components/jobs/StartJobForm';
 import { getJobs } from '@/lib/jobs';
+import { startDemo } from '@/lib/jobs';
 import type { JobSummary, Job } from '@/types/job';
 import {
   ShieldCheck,
@@ -33,6 +34,8 @@ export default function DashboardPage() {
   const [jobs, setJobs] = useState<JobSummary[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(true);
   const [showStartJob, setShowStartJob] = useState(false);
+  const [runningDemo, setRunningDemo] = useState<string | null>(null);
+  const [demoError, setDemoError] = useState<string | null>(null);
 
   useEffect(() => {
     getJobs({ page: 1, page_size: 10 })
@@ -44,6 +47,18 @@ export default function DashboardPage() {
   const handleJobStarted = (job: Job) => {
     setShowStartJob(false);
     router.push(`/jobs/${job.id}`);
+  };
+
+  const launchDemo = async (scenario: string) => {
+    setRunningDemo(scenario);
+    setDemoError(null);
+    try {
+      const job = await startDemo(scenario);
+      router.push(`/jobs/${job.id}`);
+    } catch (error: unknown) {
+      setDemoError(error instanceof Error ? error.message : 'Could not start demo');
+      setRunningDemo(null);
+    }
   };
 
   const runningJobs = jobs.filter((j) => j.status === 'running').length;
@@ -85,6 +100,28 @@ export default function DashboardPage() {
       />
 
       <PageContainer>
+        <section style={{ marginBottom: '24px', padding: '20px', border: '1px solid rgba(251,191,36,0.18)', borderRadius: '14px', background: 'linear-gradient(135deg, rgba(251,191,36,0.08), rgba(2,6,23,0.8))' }}>
+          <div style={{ marginBottom: '14px' }}>
+            <h2 style={{ color: '#FDE68A', fontSize: '1rem', margin: 0 }}>Launch the evidence loop</h2>
+            <p style={{ color: 'rgba(203,213,225,0.58)', fontSize: '0.82rem', margin: '5px 0 0' }}>
+              Three live paths: verified repair, bounded escalation, and policy refusal.
+            </p>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '10px' }}>
+            {[
+              ['sql_retry', 'Demo A · Self-correct', 'Reject a regression, retry, then verify'],
+              ['unsolvable', 'Demo B · Escalate', 'Stop after evidence cannot satisfy both requirements'],
+              ['policy_hidden_test', 'Demo C · Policy block', 'Deny an attempt to cross the hidden-test boundary'],
+            ].map(([scenario, title, description]) => (
+              <button key={scenario} onClick={() => launchDemo(scenario)} disabled={runningDemo !== null} style={{ padding: '14px', textAlign: 'left', borderRadius: '10px', border: '1px solid rgba(251,191,36,0.18)', background: 'rgba(15,23,42,0.75)', color: '#F8FAFC', cursor: runningDemo ? 'wait' : 'pointer', opacity: runningDemo && runningDemo !== scenario ? 0.5 : 1 }}>
+                <span style={{ display: 'block', color: '#FBBF24', fontWeight: 700, fontSize: '0.82rem' }}>{runningDemo === scenario ? 'Starting…' : title}</span>
+                <span style={{ display: 'block', marginTop: '5px', color: 'rgba(203,213,225,0.55)', fontSize: '0.74rem', lineHeight: 1.45 }}>{description}</span>
+              </button>
+            ))}
+          </div>
+          {demoError && <div style={{ marginTop: '10px', color: '#FCA5A5', fontSize: '0.78rem' }}>{demoError}</div>}
+        </section>
+
         {/* Stat Cards */}
         <div className="grid-4" style={{ marginBottom: '24px' }}>
           <StatCard

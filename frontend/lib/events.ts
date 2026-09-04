@@ -1,4 +1,5 @@
 import type { JobEvent } from '@/types/job';
+import { toEvent, type ApiEvent } from './jobs';
 import { BASE_URL } from './api';
 
 export type EventHandler = (event: JobEvent) => void;
@@ -11,6 +12,17 @@ export interface EventSourceOptions {
   onOpen?: ConnectionHandler;
   onClose?: ConnectionHandler;
 }
+
+const EVENT_TYPES = [
+  'job_created', 'scan_started', 'scan_completed', 'finding_detected',
+  'reproduction_confirmed', 'context_built', 'patch_generated',
+  'policy_passed', 'policy_failed', 'sandbox_started', 'security_passed',
+  'security_failed', 'regression_passed', 'regression_failed',
+  'post_scan_passed', 'post_scan_failed', 'integrity_passed',
+  'integrity_failed', 'explain_passed', 'explain_failed',
+  'candidate_rejected', 'verified', 'pr_created', 'escalated',
+  'technical_error', 'state_changed',
+];
 
 /**
  * Creates an SSE connection to stream job events in real-time.
@@ -27,14 +39,15 @@ export function createJobEventStream(
     options.onOpen?.();
   };
 
-  eventSource.onmessage = (e: MessageEvent) => {
+  const receive = (e: MessageEvent) => {
     try {
-      const event: JobEvent = JSON.parse(e.data);
-      options.onEvent(event);
+      options.onEvent(toEvent(JSON.parse(e.data) as ApiEvent));
     } catch {
       console.error('[EventStream] Failed to parse event:', e.data);
     }
   };
+  eventSource.onmessage = receive;
+  EVENT_TYPES.forEach((eventType) => eventSource.addEventListener(eventType, receive as EventListener));
 
   eventSource.onerror = (e: Event) => {
     options.onError?.(e);
