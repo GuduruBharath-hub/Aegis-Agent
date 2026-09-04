@@ -28,7 +28,7 @@ Prove the vulnerability is real and detectable before writing any agent code.
       tests in `tests/`. Initialise it as its own git repo. §16
       **Done when:** `pytest` passes inside the fixture, and `git log` shows one commit.
 
-- [ ] **P1-4 · Benchmark repo `sql_retry`.** As above, plus `search_users(term)`
+- [x] **P1-4 · Benchmark repo `sql_retry`.** As above, plus `search_users(term)`
       with the `LIKE '%' + term + '%'` trap and a `test_search_partial_match`
       that a naive parameterised fix breaks. §16
       **Done when:** `pytest` passes on the vulnerable code, and hand-applying the
