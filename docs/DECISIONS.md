@@ -66,3 +66,17 @@ why, and what would have to change to revisit it.
   specified in §12 instead of the Tier B policy-boundary fallback.
 - **Revisit only if:** Docker becomes unavailable on the demo host. Such a run
   must fall back to Tier B and be labelled `subprocess` in the job and UI.
+
+## 2026-09-05 — Preflight probe bounding (P6-2)
+
+- **Decision:** Every preflight probe carries an explicit ceiling, and the total
+  budget is *derived* from those ceilings rather than hardcoded.
+- **Why:** `httpx` timeouts are per-operation and reset on every byte received,
+  so a provider trickling a response can keep a read alive indefinitely. The
+  per-operation timeout does not bound the call; only `asyncio.wait_for` around
+  the whole probe does. Separately, ten benchmark `git config` reads at the old
+  20s ceiling could alone consume 200s.
+- **Also:** `--offline` skips the Feather and GitHub probes, so preflight can be
+  run repeatedly without spending provider quota, and works on a dead network.
+- **Revisit only if:** a probe is added or a timeout raised — the derived budget
+  and its regression test must be updated together.

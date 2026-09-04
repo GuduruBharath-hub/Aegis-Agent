@@ -7,9 +7,11 @@ interface HeaderProps {
   title?: string;
   subtitle?: string;
   actions?: React.ReactNode;
+  runMode?: 'demo' | 'live' | 'replay';
 }
 
-export const Header: React.FC<HeaderProps> = ({ title, subtitle, actions }) => {
+export const Header: React.FC<HeaderProps> = ({ title, subtitle, actions, runMode = 'live' }) => {
+  const replay = runMode === 'replay';
   return (
     <header className="app-header">
       <div style={{ flex: 1 }}>
@@ -41,22 +43,22 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle, actions }) => {
         </div>
       )}
 
-      {/* Live pill */}
+      {/* A replay must never be visually mistaken for a live control-plane run. */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
           gap: '6px',
           padding: '4px 12px',
-          background: 'rgba(52,211,153,0.06)',
-          border: '1px solid rgba(52,211,153,0.15)',
+          background: replay ? 'rgba(168,85,247,0.1)' : 'rgba(52,211,153,0.06)',
+          border: `1px solid ${replay ? 'rgba(192,132,252,0.35)' : 'rgba(52,211,153,0.15)'}`,
           borderRadius: '20px',
           marginLeft: '8px',
         }}
       >
-        <Activity size={11} color="#34D399" />
-        <span style={{ fontSize: '0.68rem', color: 'rgba(52,211,153,0.8)', fontWeight: 600, letterSpacing: '0.08em' }}>
-          LIVE
+        <Activity size={11} color={replay ? '#C084FC' : '#34D399'} />
+        <span style={{ fontSize: '0.68rem', color: replay ? '#D8B4FE' : 'rgba(52,211,153,0.8)', fontWeight: 700, letterSpacing: '0.08em' }}>
+          {replay ? '[REPLAY]' : 'LIVE'}
         </span>
       </div>
 

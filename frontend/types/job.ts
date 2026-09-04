@@ -2,6 +2,7 @@ import type { JobStatus, AttemptStatus } from './api';
 
 export interface Job {
   id: string;
+  mode: 'demo' | 'live' | 'replay';
   repo_url: string;
   repo_name: string;
   branch: string;
@@ -34,6 +35,16 @@ export interface JobSummary {
   total_findings: number;
   patched_findings: number;
   final_decision: string | null;
+}
+
+export interface ReplaySummary {
+  id: string;
+  source_job_id: string;
+  scenario: string | null;
+  final_decision: string;
+  attempts: number;
+  event_count: number;
+  recorded_at: string;
 }
 
 export interface JobEvent {

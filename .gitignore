@@ -12,7 +12,9 @@ aegis.db
 aegis.db-wal
 aegis.db-shm
 .workspaces/
-replay/*.jsonl
+# Recordings are committed on purpose: they are the offline demo fallback
+# (plan.md §16) and regenerating one costs a real provider run.
+# replay/*.jsonl
 
 # --- python ---
 __pycache__/

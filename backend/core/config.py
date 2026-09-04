@@ -47,6 +47,7 @@ class RuntimeSettings(BaseSettings):
         default=Path("policies/security_policy.json"),
         alias="AEGIS_POLICY_PATH",
     )
+    replay_dir: Path = Field(default=Path("replay"), alias="AEGIS_REPLAY_DIR")
     max_attempts: int = Field(default=3, ge=1, le=10, alias="AEGIS_MAX_ATTEMPTS")
     job_wall_clock_seconds: float = Field(
         default=480.0,

@@ -20,6 +20,23 @@ class JobRef(BaseModel):
     stream_url: str
 
 
+class ReplayRecordCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    recording_id: str = Field(pattern=r"^[a-z0-9][a-z0-9_-]{0,79}$")
+    job_id: str = Field(min_length=1)
+
+
+class ReplaySummaryResponse(BaseModel):
+    id: str
+    source_job_id: str
+    scenario: str | None
+    final_decision: str
+    attempts: int
+    event_count: int
+    recorded_at: str
+
+
 class FindingResponse(BaseModel):
     id: str
     cwe: str

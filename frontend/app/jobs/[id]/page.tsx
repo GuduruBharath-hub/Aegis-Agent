@@ -95,12 +95,13 @@ export default function JobDetailPage() {
       <Header
         title={extractRepoName(job.repo_name)}
         subtitle={`Job ${job.id.slice(0, 8)}...`}
+        runMode={job.mode}
         actions={
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 10px', background: streamStatus === 'connected' ? 'rgba(168,224,99,0.06)' : 'rgba(212,175,55,0.04)', border: `1px solid ${streamStatus === 'connected' ? 'rgba(168,224,99,0.2)' : 'rgba(212,175,55,0.1)'}`, borderRadius: '16px' }}>
               {streamStatus === 'connected' ? <Wifi size={12} color="#a8e063" /> : <WifiOff size={12} color="rgba(212,175,55,0.35)" />}
               <span style={{ fontSize: '0.72rem', color: streamStatus === 'connected' ? '#a8e063' : 'rgba(212,175,55,0.35)', fontWeight: 500 }}>
-                {streamStatus === 'connected' ? 'Live' : streamStatus}
+                {streamStatus === 'connected' ? (job.mode === 'replay' ? 'Recorded stream' : 'Live') : streamStatus}
               </span>
             </div>
 

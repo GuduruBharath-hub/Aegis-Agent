@@ -12,6 +12,7 @@ from backend.core.config import FeatherSettings, GitHubSettings, RuntimeSettings
 from backend.core.event_bus import EventBus
 from backend.core.models import BenchmarkRun, Finding, Job
 from backend.core.orchestrator import Orchestrator
+from backend.core.replay import ReplayArchive
 from backend.core.workspace import WorkspaceManager
 from backend.github.client import GitHubClient
 from backend.sandbox.runner import SandboxRunner
@@ -55,6 +56,9 @@ class ApiRuntime:
     runner: JobRunner
     max_attempts: int
     project_root: Path = PROJECT_ROOT
+    replay_archive: ReplayArchive = field(
+        default_factory=lambda: ReplayArchive(PROJECT_ROOT / "replay")
+    )
     _tasks: set[asyncio.Task[Job]] = field(
         init=False,
         default_factory=set,
@@ -107,6 +111,7 @@ class ApiRuntime:
             event_bus=event_bus,
             runner=orchestrator,
             max_attempts=runtime_settings.max_attempts,
+            replay_archive=ReplayArchive(_from_project(runtime_settings.replay_dir)),
         )
 
     def launch(self, job_id: str, *, benchmark_run_id: int | None = None) -> None:

@@ -9,9 +9,8 @@ import { SecurityOverview } from '@/components/dashboard/SecurityOverview';
 import { RecentActivity } from '@/components/dashboard/RecentActivity';
 import { Modal } from '@/components/ui/Modal';
 import { StartJobForm } from '@/components/jobs/StartJobForm';
-import { getJobs } from '@/lib/jobs';
-import { startDemo } from '@/lib/jobs';
-import type { JobSummary, Job } from '@/types/job';
+import { getJobs, getReplays, startDemo, startReplay } from '@/lib/jobs';
+import type { JobSummary, Job, ReplaySummary } from '@/types/job';
 import {
   ShieldCheck,
   Briefcase,
@@ -36,12 +35,17 @@ export default function DashboardPage() {
   const [showStartJob, setShowStartJob] = useState(false);
   const [runningDemo, setRunningDemo] = useState<string | null>(null);
   const [demoError, setDemoError] = useState<string | null>(null);
+  const [replays, setReplays] = useState<ReplaySummary[]>([]);
 
   useEffect(() => {
     getJobs({ page: 1, page_size: 10 })
       .then((res) => setJobs(res.items))
       .catch(() => setJobs([]))
       .finally(() => setLoadingJobs(false));
+  }, []);
+
+  useEffect(() => {
+    getReplays().then(setReplays).catch(() => setReplays([]));
   }, []);
 
   const handleJobStarted = (job: Job) => {
@@ -57,6 +61,18 @@ export default function DashboardPage() {
       router.push(`/jobs/${job.id}`);
     } catch (error: unknown) {
       setDemoError(error instanceof Error ? error.message : 'Could not start demo');
+      setRunningDemo(null);
+    }
+  };
+
+  const launchReplay = async (recordingId: string) => {
+    setRunningDemo(recordingId);
+    setDemoError(null);
+    try {
+      const job = await startReplay(recordingId);
+      router.push(`/jobs/${job.id}`);
+    } catch (error: unknown) {
+      setDemoError(error instanceof Error ? error.message : 'Could not start replay');
       setRunningDemo(null);
     }
   };
@@ -119,6 +135,25 @@ export default function DashboardPage() {
               </button>
             ))}
           </div>
+          {replays.length > 0 && (
+            <div style={{ marginTop: '14px', paddingTop: '14px', borderTop: '1px solid rgba(192,132,252,0.18)' }}>
+              <div style={{ color: '#D8B4FE', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.08em', marginBottom: '8px' }}>
+                OFFLINE FALLBACK · RECORDED REAL RUNS
+              </div>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                {replays.slice(0, 3).map((replay) => (
+                  <button
+                    key={replay.id}
+                    onClick={() => launchReplay(replay.id)}
+                    disabled={runningDemo !== null}
+                    style={{ padding: '9px 12px', borderRadius: '9px', border: '1px solid rgba(192,132,252,0.3)', background: 'rgba(88,28,135,0.12)', color: '#E9D5FF', cursor: runningDemo ? 'wait' : 'pointer', fontSize: '0.75rem', fontWeight: 600 }}
+                  >
+                    {runningDemo === replay.id ? 'Loading replay…' : `[REPLAY] ${replay.scenario ?? replay.id} · ${replay.final_decision}`}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           {demoError && <div style={{ marginTop: '10px', color: '#FCA5A5', fontSize: '0.78rem' }}>{demoError}</div>}
         </section>
 

@@ -1,5 +1,5 @@
 import api from './api';
-import type { Job, JobSummary, JobEvent, JobAttempt, StartJobRequest } from '@/types/job';
+import type { Job, JobSummary, JobEvent, JobAttempt, ReplaySummary, StartJobRequest } from '@/types/job';
 import type { PaginatedResponse } from '@/types/api';
 
 interface ApiFinding {
@@ -8,6 +8,7 @@ interface ApiFinding {
 
 interface ApiJob {
   id: string;
+  mode: 'demo' | 'live' | 'replay';
   repository: string;
   repository_url: string;
   base_sha: string;
@@ -82,6 +83,16 @@ export async function startDemo(scenario: string): Promise<Job> {
   return getJob(data.job_id);
 }
 
+export async function getReplays(): Promise<ReplaySummary[]> {
+  const { data } = await api.get<ReplaySummary[]>('/api/replays');
+  return data;
+}
+
+export async function startReplay(recordingId: string): Promise<Job> {
+  const { data } = await api.post<{ job_id: string }>(`/api/replays/${recordingId}`);
+  return getJob(data.job_id);
+}
+
 export async function cancelJob(id: string): Promise<void> {
   await api.post(`/api/jobs/${id}/cancel`);
 }
@@ -134,6 +145,7 @@ function toJob(job: ApiJob): Job {
   const findingCount = job.finding ? 1 : 0;
   return {
     id: job.id,
+    mode: job.mode,
     repo_url: job.repository_url,
     repo_name: job.repository,
     branch: job.branch_name ?? job.base_sha.slice(0, 12),
