@@ -85,6 +85,7 @@ class Orchestrator:
         verifier: CandidateVerifier,
         delivery: PullRequestDeliverer,
         context_builder: ContextBuilder | None = None,
+        job_wall_clock_seconds: float = 480.0,
     ) -> None:
         self.jobs = jobs
         self.attempts = attempts
@@ -98,8 +99,38 @@ class Orchestrator:
         self.verifier = verifier
         self.delivery = delivery
         self.context_builder = context_builder or ContextBuilder()
+        if job_wall_clock_seconds <= 0:
+            raise ValueError("job wall-clock budget must be positive")
+        self.job_wall_clock_seconds = job_wall_clock_seconds
 
     async def run(self, job_id: str) -> Job:
+        try:
+            async with asyncio.timeout(self.job_wall_clock_seconds):
+                return await self._run(job_id)
+        except TimeoutError:
+            job = self.jobs.get(job_id)
+            if job is None:
+                raise KeyError(f"job not found: {job_id}")
+            await self._emit(
+                job,
+                "technical_error",
+                "Job exceeded its wall-clock budget",
+                severity="critical",
+                data={
+                    "component": "orchestrator",
+                    "code": "job_wall_clock_timeout",
+                    "limit_seconds": self.job_wall_clock_seconds,
+                },
+            )
+            return await self._transition(
+                job,
+                JobState.FAILED,
+                final_decision=job.final_decision or "failed",
+                final_reason=job.final_reason or "job_wall_clock_timeout",
+                completed_at=utcnow_iso(),
+            )
+
+    async def _run(self, job_id: str) -> Job:
         job = self.jobs.get(job_id)
         if job is None:
             raise KeyError(f"job not found: {job_id}")

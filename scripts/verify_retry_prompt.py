@@ -17,7 +17,7 @@ from backend.agent.llm_client import (
     RejectedAlternative,
     TechnicalErrorReporter,
 )
-from backend.core.config import FeatherSettings, GitHubSettings
+from backend.core.config import FeatherSettings, GitHubSettings, RuntimeSettings
 from backend.core.event_bus import EventBus
 from backend.core.models import (
     CandidateEvidence,
@@ -269,6 +269,7 @@ class SmokeDelivery:
 
 
 async def main(*, deliver: bool = False) -> None:
+    runtime_settings = RuntimeSettings()
     runner = SandboxRunner(PROJECT_ROOT)
     runner.ensure_image()
     with tempfile.TemporaryDirectory(prefix="aegis-retry-smoke-") as temporary:
@@ -313,6 +314,7 @@ async def main(*, deliver: bool = False) -> None:
                     if deliver
                     else SmokeDelivery()
                 ),
+                job_wall_clock_seconds=runtime_settings.job_wall_clock_seconds,
             )
             result = await orchestrator.run(job.id)
             recorded_attempts = attempts.list_for_job(job.id)

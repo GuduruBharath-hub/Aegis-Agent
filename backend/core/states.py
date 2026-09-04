@@ -43,12 +43,12 @@ LEGAL: dict[JobState, frozenset[JobState]] = {
         {JobState.FINDING_IDENTIFIED, JobState.ESCALATED, JobState.FAILED}
     ),
     JobState.FINDING_IDENTIFIED: frozenset(
-        {JobState.REPRODUCING, JobState.ESCALATED}
+        {JobState.REPRODUCING, JobState.ESCALATED, JobState.FAILED}
     ),
     JobState.REPRODUCING: frozenset(
         {JobState.REPRODUCED, JobState.ESCALATED, JobState.FAILED}
     ),
-    JobState.REPRODUCED: frozenset({JobState.CONTEXT_BUILDING}),
+    JobState.REPRODUCED: frozenset({JobState.CONTEXT_BUILDING, JobState.FAILED}),
     JobState.CONTEXT_BUILDING: frozenset(
         {JobState.GENERATING_PATCH, JobState.FAILED}
     ),
@@ -56,27 +56,32 @@ LEGAL: dict[JobState, frozenset[JobState]] = {
         {JobState.VALIDATING_PATCH, JobState.FAILED}
     ),
     JobState.VALIDATING_PATCH: frozenset(
-        {JobState.SANDBOXING, JobState.RETRYING, JobState.POLICY_REJECTED}
+        {
+            JobState.SANDBOXING,
+            JobState.RETRYING,
+            JobState.POLICY_REJECTED,
+            JobState.FAILED,
+        }
     ),
     JobState.SANDBOXING: frozenset(
         {JobState.VERIFYING_SECURITY, JobState.RETRYING, JobState.FAILED}
     ),
     JobState.VERIFYING_SECURITY: frozenset(
-        {JobState.VERIFYING_REGRESSION, JobState.RETRYING}
+        {JobState.VERIFYING_REGRESSION, JobState.RETRYING, JobState.FAILED}
     ),
     JobState.VERIFYING_REGRESSION: frozenset(
-        {JobState.POST_SCANNING, JobState.RETRYING}
+        {JobState.POST_SCANNING, JobState.RETRYING, JobState.FAILED}
     ),
     JobState.POST_SCANNING: frozenset(
-        {JobState.INTEGRITY_CHECK, JobState.RETRYING}
+        {JobState.INTEGRITY_CHECK, JobState.RETRYING, JobState.FAILED}
     ),
     JobState.INTEGRITY_CHECK: frozenset(
         {JobState.VERIFIED, JobState.RETRYING, JobState.FAILED}
     ),
     JobState.RETRYING: frozenset(
-        {JobState.CONTEXT_BUILDING, JobState.ESCALATED}
+        {JobState.CONTEXT_BUILDING, JobState.ESCALATED, JobState.FAILED}
     ),
-    JobState.VERIFIED: frozenset({JobState.CREATING_PR}),
+    JobState.VERIFIED: frozenset({JobState.CREATING_PR, JobState.FAILED}),
     JobState.CREATING_PR: frozenset({JobState.COMPLETED, JobState.FAILED}),
 }
 

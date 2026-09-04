@@ -48,6 +48,11 @@ class RuntimeSettings(BaseSettings):
         alias="AEGIS_POLICY_PATH",
     )
     max_attempts: int = Field(default=3, ge=1, le=10, alias="AEGIS_MAX_ATTEMPTS")
+    job_wall_clock_seconds: float = Field(
+        default=480.0,
+        gt=0,
+        alias="AEGIS_JOB_WALL_CLOCK_S",
+    )
 
 
 class GitHubSettings(BaseSettings):

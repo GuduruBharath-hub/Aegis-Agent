@@ -35,6 +35,12 @@ def test_every_declared_transition_is_accepted() -> None:
             validate_transition(current, target)
 
 
+def test_every_nonterminal_state_can_fail_on_a_technical_error() -> None:
+    for state in JobState:
+        if state not in TERMINAL:
+            validate_transition(state, JobState.FAILED)
+
+
 def test_illegal_transition_raises() -> None:
     with pytest.raises(IllegalTransitionError, match="received -> verified"):
         validate_transition(JobState.RECEIVED, JobState.VERIFIED)

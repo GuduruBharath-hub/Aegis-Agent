@@ -160,12 +160,21 @@ class MutatingDeliveryWorkspace(WorkspaceManager):
         return delivery
 
 
+class HangingPatchModel:
+    name = "hanging-model"
+
+    async def generate_patch(self, *args: object, **kwargs: object) -> PatchProposal:
+        del args, kwargs
+        await asyncio.Event().wait()
+        raise AssertionError("unreachable")
+
+
 @dataclass(frozen=True, slots=True)
 class RunResult:
     job: Job
     attempts: tuple[Attempt, ...]
     events: tuple[Event, ...]
-    model: StubPatchModel | FeatherPatchModel
+    model: StubPatchModel | FeatherPatchModel | HangingPatchModel
     verifier: StubVerifier
     delivery: StubDelivery
     job_workspace: Path
@@ -259,8 +268,9 @@ def _execute(
     max_attempts: int,
     mutate_candidate: bool = False,
     mutate_delivery: bool = False,
-    model_override: FeatherPatchModel | None = None,
+    model_override: FeatherPatchModel | HangingPatchModel | None = None,
     delivery_override: StubDelivery | None = None,
+    job_wall_clock_seconds: float = 480.0,
 ) -> RunResult:
     tmp_path.mkdir(parents=True, exist_ok=True)
     database = Database(tmp_path / "aegis.db")
@@ -302,6 +312,7 @@ def _execute(
             model=model,
             verifier=verifier,
             delivery=delivery,
+            job_wall_clock_seconds=job_wall_clock_seconds,
         )
 
         final_job = asyncio.run(orchestrator.run(job.id))
@@ -486,6 +497,30 @@ def test_github_failure_preserves_verified_decision(tmp_path: Path) -> None:
     assert result.job.pr_url is None
     assert len(delivery.calls) == 1
     assert "technical_error" in [event.type for event in result.events]
+
+
+def test_job_wall_clock_timeout_is_technical_and_consumes_no_attempt(
+    tmp_path: Path,
+) -> None:
+    result = _execute(
+        tmp_path,
+        (),
+        max_attempts=3,
+        model_override=HangingPatchModel(),
+        job_wall_clock_seconds=0.05,
+    )
+
+    assert result.job.state == JobState.FAILED.value
+    assert result.job.final_decision == "failed"
+    assert result.job.final_reason == "job_wall_clock_timeout"
+    assert result.job.current_attempt == 0
+    assert result.attempts == ()
+    error = next(event for event in result.events if event.type == "technical_error")
+    assert json.loads(error.data_json or "{}") == {
+        "code": "job_wall_clock_timeout",
+        "component": "orchestrator",
+        "limit_seconds": 0.05,
+    }
 
 
 def test_phase_two_matrix_reaches_all_four_terminal_states(tmp_path: Path) -> None:

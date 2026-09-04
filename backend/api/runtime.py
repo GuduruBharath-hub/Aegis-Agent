@@ -88,6 +88,7 @@ class ApiRuntime:
             model=FeatherPatchModel(FeatherSettings()),
             verifier=SandboxCandidateVerifier(SandboxRunner(PROJECT_ROOT)),
             delivery=GitHubClient(GitHubSettings()),
+            job_wall_clock_seconds=runtime_settings.job_wall_clock_seconds,
         )
         return cls(
             connection=connection,
