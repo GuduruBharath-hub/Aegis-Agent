@@ -14,14 +14,57 @@ this repository is the body around it: **eyes** (scanner, reproducer, sandbox
 instrumentation), **hands** (patch application, git, PR), and a **spine** — the
 deterministic gates that are the only code permitted to produce `VERIFIED`.
 
+## Scope of the claim
+
+Read this before reading anything else.
+
+**`VERIFIED` means:** this candidate patch satisfied the six gates below, on
+this commit, against this repository's existing tests and this oracle's
+payloads.
+
+**`VERIFIED` does not mean:** the application is secure, or free of
+vulnerabilities. Evidence is not proof of absence. The same statement appears
+in every pull request AegisAgent opens.
+
+Concretely, the limits we know about:
+
+- The security oracle is only as good as the payloads written for it. A finite
+  payload set cannot demonstrate the absence of a vulnerability class.
+- The regression gate is only as good as the repository's existing tests. On a
+  weakly tested repository, a patch that quietly changes behaviour can pass.
+- Static analysis is Bandit's ruleset plus our AST rules, not a formal analysis.
+- Autonomous remediation covers **SQL injection (CWE-89)** and **command
+  injection (CWE-78)** in Python 3.11. Everything else is detected and
+  escalated, never patched.
+- A finding that cannot be reproduced is never patched, by design.
+- The sandbox is a real boundary only on Tier A (Docker). The Tier B fallback
+  is a policy boundary, not a security boundary, and every run records which
+  tier produced it.
+
+We would rather be trusted than impressive.
+
 ## Status
 
-Planning complete. No implementation yet.
+Implementation underway. Planning artefacts:
+[`docs/plan.md`](docs/plan.md) is the specification of record,
+[`docs/BACKLOG.md`](docs/BACKLOG.md) the task board, and
+[`docs/DECISIONS.md`](docs/DECISIONS.md) the log of choices that are expensive
+to revisit.
 
-The full engineering plan — architecture, data flow, API contract, database
-schema, state machine, security controls, sandbox design, verification and
-self-correction implementation, benchmark design, and the phased execution
-plan — is in [`docs/plan.html`](docs/plan.html).
+| Phase | State |
+|---|---|
+| P1 Ground truth | complete |
+| P2 Control plane | complete |
+| P3 Feather / model chain | complete |
+| P4 Dashboard | complete |
+| P5 Delivery and refusal | complete |
+| P6 Freeze and rehearse | in progress |
+
+Run the preflight before any demo:
+
+```bash
+python scripts/verify_env.py --offline
+```
 
 ## The six gates
 

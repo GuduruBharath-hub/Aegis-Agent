@@ -181,7 +181,9 @@ The whole loop runs end to end with a **stub** brain. No LLM yet.
 - [x] **P6-1 · Replay mode** with the visible REPLAY badge; record 3 real runs. §16
 - [x] **P6-2 · `scripts/verify_env.py`.** §18 — bounded probes, `--offline` mode,
       derived total budget. Runs in 0.5s offline.
-- [ ] **P6-3 · Home page, architecture page, README scope statement.**
+- [x] **P6-3 · Home page, architecture page, README scope statement.**
+      `/architecture` route, `GuardrailList` on dashboard + architecture page,
+      README scope statement with named limits.
 - [ ] **P6-4 · Final benchmark run** for the numbers you will quote.
 - [ ] **P6-5 · Explain-it-back rehearsal.** §13B
 - [ ] **P6-6 · Code freeze**, then three end-to-end demo rehearsals.

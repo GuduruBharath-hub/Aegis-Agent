@@ -8,6 +8,7 @@ import {
   Briefcase,
   ShieldCheck,
   FlaskConical,
+  Network,
   Zap,
   ChevronRight,
 } from 'lucide-react';
@@ -17,6 +18,7 @@ const navItems = [
   { href: '/jobs',         label: 'Jobs',         icon: Briefcase },
   { href: '/remediations', label: 'Remediations', icon: ShieldCheck },
   { href: '/benchmarks',   label: 'Benchmarks',   icon: FlaskConical },
+  { href: '/architecture', label: 'Architecture', icon: Network },
 ];
 
 export const Sidebar: React.FC = () => {

@@ -9,6 +9,7 @@ import { SecurityOverview } from '@/components/dashboard/SecurityOverview';
 import { RecentActivity } from '@/components/dashboard/RecentActivity';
 import { Modal } from '@/components/ui/Modal';
 import { StartJobForm } from '@/components/jobs/StartJobForm';
+import { GuardrailList } from '@/components/common/GuardrailList';
 import { getJobs, getReplays, startDemo, startReplay } from '@/lib/jobs';
 import type { JobSummary, Job, ReplaySummary } from '@/types/job';
 import {
@@ -207,6 +208,9 @@ export default function DashboardPage() {
 
         {/* Activity */}
         <RecentActivity />
+        <div style={{ marginTop: '24px' }}>
+          <GuardrailList compact />
+        </div>
       </PageContainer>
 
       {/* Start Job Modal */}
