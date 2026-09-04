@@ -149,9 +149,81 @@ def _run_payload(module: ModuleType, case: PayloadCase) -> PayloadResult:
     )
 
 
+def _run_lookup_payload(module: ModuleType, value: str, kind: PayloadKind) -> PayloadResult:
+    connection = module.create_database()
+    error: str | None = None
+    user: object | None = None
+    try:
+        user = module.get_user(value, connection)
+    except Exception as exc:
+        error = f"{type(exc).__name__}: {exc}"
+    finally:
+        connection.close()
+    observed_id = getattr(user, "id", None)
+    exploited = kind == "attack" and user is not None
+    expected_id = 1 if value == "1" else None
+    passed = not exploited if kind == "attack" else error is None and observed_id == expected_id
+    return PayloadResult(
+        input=value,
+        kind=kind,
+        signal="unexpected_user_returned",
+        passed=passed,
+        exploited=exploited,
+        observed={"user_id": observed_id},
+        error=error,
+    )
+
+
+def _run_order_payload(module: ModuleType, value: str, kind: PayloadKind) -> PayloadResult:
+    error: str | None = None
+    items: list[object] = []
+    try:
+        items = module.order_items(value)
+    except Exception as exc:
+        error = f"{type(exc).__name__}: {exc}"
+    ids = [getattr(item, "id", None) for item in items]
+    expected = [1, 2, 3] if value == "id" else [3, 2, 1]
+    exploited = kind == "attack" and error is None
+    passed = not exploited if kind == "attack" else error is None and ids == expected
+    return PayloadResult(
+        input=value,
+        kind=kind,
+        signal="arbitrary_order_expression_executed",
+        passed=passed,
+        exploited=exploited,
+        observed={"ids": ids},
+        error=error,
+    )
+
+
 def run(workspace: Path) -> HarnessReport:
     module = _load_database_module(workspace)
-    results = tuple(_run_payload(module, case) for case in PAYLOADS)
+    if hasattr(module, "order_items"):
+        order_payloads = (
+            ("id", "benign"),
+            ("name", "benign"),
+            ("CASE WHEN (SELECT 1)=1 THEN name ELSE id END", "attack"),
+            ("random()", "attack"),
+        )
+        results = tuple(
+            _run_order_payload(module, value, kind)
+            for value, kind in order_payloads
+        )
+    elif hasattr(module, "search_users"):
+        results = tuple(_run_payload(module, case) for case in PAYLOADS)
+    elif hasattr(module, "get_user"):
+        lookup_payloads = (
+            ("1", "benign"),
+            ("99", "benign"),
+            ("' OR '1'='1", "attack"),
+            ("1' OR '1'='1", "attack"),
+        )
+        results = tuple(
+            _run_lookup_payload(module, value, kind)
+            for value, kind in lookup_payloads
+        )
+    else:
+        raise AttributeError("SQL benchmark exposes no supported target function")
     attacks = tuple(result for result in results if result.kind == "attack")
     benign = tuple(result for result in results if result.kind == "benign")
     return HarnessReport(

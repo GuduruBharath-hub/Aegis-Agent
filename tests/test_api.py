@@ -4,6 +4,7 @@ import asyncio
 from dataclasses import replace
 import json
 from pathlib import Path
+import time
 
 from fastapi.testclient import TestClient
 
@@ -11,6 +12,7 @@ from backend.api.runtime import ApiRuntime
 from backend.core.event_bus import EventBus
 from backend.core.models import Attempt, Event, Finding, Job, utcnow_iso
 from backend.core.states import JobState
+from backend.core.workspace import write_text
 from backend.main import create_app
 from backend.storage.database import Database
 
@@ -94,6 +96,7 @@ def _runtime(tmp_path: Path) -> ApiRuntime:
         findings=database.findings(connection),
         events=event_repo,
         artifacts=database.artifacts(connection),
+        benchmark_runs=database.benchmark_runs(connection),
         event_bus=EventBus(event_repo),
         runner=None,  # type: ignore[arg-type]
         max_attempts=3,
@@ -101,6 +104,27 @@ def _runtime(tmp_path: Path) -> ApiRuntime:
     )
     runtime.runner = CompletingRunner(runtime)
     (tmp_path / "benchmarks" / "sql_retry").mkdir(parents=True)
+    write_text(
+        tmp_path / "benchmarks" / "MANIFEST.json",
+        json.dumps(
+            {
+                "version": 1,
+                "cases": [
+                    {
+                        "id": "sql_retry",
+                        "name": "SQL Retry",
+                        "description": "retry fixture",
+                        "category": "self-correction",
+                        "difficulty": "medium",
+                        "language": "Python",
+                        "vulnerability_types": ["CWE-89"],
+                        "expected_decision": "verified",
+                        "expected_attempts": 2,
+                    }
+                ],
+            }
+        ),
+    )
     return runtime
 
 
@@ -173,6 +197,38 @@ def test_post_demo_returns_job_ref_and_attempt_detail(tmp_path: Path) -> None:
         "harness": '{"exploited":false}',
     }
     assert detail.json()["rationale"]["reviewer_must_confirm"] == ["review"]
+    runtime.connection.close()
+
+
+def test_benchmark_endpoint_records_actual_outcome_and_metrics(tmp_path: Path) -> None:
+    runtime = _runtime(tmp_path)
+    with TestClient(create_app(runtime)) as client:
+        scenarios = client.get("/api/benchmarks/scenarios")
+        started = client.post(
+            "/api/benchmarks/run",
+            json={"scenario_id": "sql_retry"},
+        )
+        run_id = started.json()["id"]
+        completed: dict[str, object] = {}
+        for _ in range(50):
+            completed = client.get(f"/api/benchmarks/runs/{run_id}").json()
+            if completed["status"] == "completed":
+                break
+            time.sleep(0.01)
+        metrics = client.get("/api/benchmarks/metrics")
+
+    assert scenarios.status_code == 200
+    assert scenarios.json()[0]["expected_decision"] == "verified"
+    assert started.status_code == 202
+    assert completed["actual_decision"] == "verified"
+    assert completed["correct"] is True
+    assert completed["false_verification"] is False
+    assert metrics.json() == {
+        "total_runs": 1,
+        "completed_runs": 1,
+        "correct_runs": 1,
+        "false_verifications": 0,
+    }
     runtime.connection.close()
 
 

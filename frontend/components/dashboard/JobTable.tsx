@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/Badge';
+import type { BadgeVariant } from '@/components/ui/Badge';
 import { extractRepoName, formatRelativeTime } from '@/lib/utils';
 import type { JobSummary } from '@/types/job';
 import type { JobStatus } from '@/types/api';
@@ -20,7 +21,7 @@ const columns = [
   { key: 'time', label: 'Time', width: '1fr' },
 ];
 
-const statusVariantMap: Record<JobStatus, string> = {
+const statusVariantMap: Record<JobStatus, BadgeVariant> = {
   pending: 'pending',
   running: 'running',
   completed: 'completed',

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 import sqlite3
 from typing import Protocol
@@ -9,7 +10,7 @@ from typing import Protocol
 from backend.agent.feather_client import FeatherPatchModel
 from backend.core.config import FeatherSettings, GitHubSettings, RuntimeSettings
 from backend.core.event_bus import EventBus
-from backend.core.models import Finding, Job
+from backend.core.models import BenchmarkRun, Finding, Job
 from backend.core.orchestrator import Orchestrator
 from backend.core.workspace import WorkspaceManager
 from backend.github.client import GitHubClient
@@ -19,6 +20,7 @@ from backend.storage.database import Database
 from backend.storage.repositories import (
     ArtifactRepo,
     AttemptRepo,
+    BenchmarkRunRepo,
     EventRepo,
     FindingRepo,
     JobRepo,
@@ -47,6 +49,7 @@ class ApiRuntime:
     findings: FindingRepo
     events: EventRepo
     artifacts: ArtifactRepo
+    benchmark_runs: BenchmarkRunRepo
     event_bus: EventBus
     runner: JobRunner
     max_attempts: int
@@ -67,6 +70,7 @@ class ApiRuntime:
         findings = database.findings(connection)
         events = database.events(connection)
         artifacts = database.artifacts(connection)
+        benchmark_runs = database.benchmark_runs(connection)
         event_bus = EventBus(events)
         workspace = WorkspaceManager(
             _from_project(runtime_settings.workspace_root)
@@ -80,6 +84,7 @@ class ApiRuntime:
             jobs=jobs,
             attempts=attempts,
             artifacts=artifacts,
+            benchmark_runs=benchmark_runs,
             findings=findings,
             events=event_bus,
             workspace=workspace,
@@ -102,10 +107,12 @@ class ApiRuntime:
             max_attempts=runtime_settings.max_attempts,
         )
 
-    def launch(self, job_id: str) -> None:
+    def launch(self, job_id: str, *, benchmark_run_id: int | None = None) -> None:
         task = asyncio.create_task(self.runner.run(job_id))
         self._tasks.add(task)
-        task.add_done_callback(self._task_finished)
+        task.add_done_callback(
+            lambda completed: self._task_finished(completed, benchmark_run_id)
+        )
 
     async def close(self) -> None:
         for task in self._tasks:
@@ -114,11 +121,42 @@ class ApiRuntime:
             await asyncio.gather(*self._tasks, return_exceptions=True)
         self.connection.close()
 
-    def _task_finished(self, task: asyncio.Task[Job]) -> None:
+    def _task_finished(
+        self,
+        task: asyncio.Task[Job],
+        benchmark_run_id: int | None,
+    ) -> None:
         self._tasks.discard(task)
-        if not task.cancelled():
-            task.exception()
+        if task.cancelled():
+            return
+        error = task.exception()
+        if error is not None or benchmark_run_id is None:
+            return
+        job = task.result()
+        run = self.benchmark_runs.get(benchmark_run_id)
+        if run is None:
+            return
+        started = _parse_iso(run.run_at)
+        completed = _parse_iso(job.completed_at or job.updated_at)
+        actual = job.final_decision or job.state
+        self.benchmark_runs.update(
+            BenchmarkRun(
+                id=run.id,
+                case_id=run.case_id,
+                job_id=run.job_id,
+                expected_decision=run.expected_decision,
+                actual_decision=actual,
+                attempts_used=job.current_attempt,
+                duration_ms=max(0, round((completed - started).total_seconds() * 1000)),
+                correct=actual == run.expected_decision,
+                run_at=run.run_at,
+            )
+        )
 
 
 def _from_project(path: Path) -> Path:
     return path if path.is_absolute() else PROJECT_ROOT / path
+
+
+def _parse_iso(value: str) -> datetime:
+    return datetime.fromisoformat(value)

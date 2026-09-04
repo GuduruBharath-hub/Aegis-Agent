@@ -167,7 +167,7 @@ The whole loop runs end to end with a **stub** brain. No LLM yet.
 - [x] **P5-3 · Command-injection adapter + `cmd_retry` benchmark.** §16
       If this is not mostly a copy of the SQL path, the adapter interface is
       wrong — stop and fix the interface.
-- [ ] **P5-4 · Benchmark cases 5–10** and `scripts/run_benchmark.py`. §16
+- [x] **P5-4 · Benchmark cases 5–10** and `scripts/run_benchmark.py`. §16
 - [ ] **P5-5 · Escalation and policy-block screens** as governance outcomes,
       not errors. §20, §54–55 equivalents
 

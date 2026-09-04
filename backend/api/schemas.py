@@ -90,6 +90,45 @@ class AttemptDetail(AttemptSummary):
     tree_hash_post: str | None
 
 
+class BenchmarkScenarioResponse(BaseModel):
+    id: str
+    name: str
+    description: str
+    category: str
+    difficulty: Literal["easy", "medium", "hard", "expert"]
+    language: str
+    vulnerability_types: list[str]
+    expected_decision: str
+    expected_attempts: int | None
+
+
+class BenchmarkRunCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    scenario_id: str = Field(min_length=1)
+
+
+class BenchmarkRunResponse(BaseModel):
+    id: int
+    case_id: str
+    job_id: str
+    expected_decision: str
+    actual_decision: str | None
+    attempts_used: int | None
+    duration_ms: int | None
+    correct: bool | None
+    false_verification: bool
+    status: Literal["running", "completed"]
+    run_at: str
+
+
+class BenchmarkMetricsResponse(BaseModel):
+    total_runs: int
+    completed_runs: int
+    correct_runs: int
+    false_verifications: int
+
+
 ErrorKind: TypeAlias = Literal[
     "technical",
     "policy",

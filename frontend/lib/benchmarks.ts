@@ -8,35 +8,26 @@ export interface BenchmarkScenario {
   difficulty: 'easy' | 'medium' | 'hard' | 'expert';
   language: string;
   vulnerability_types: string[];
-  expected_findings: number;
-  repo_url?: string;
-  tags: string[];
+  expected_decision: string;
+  expected_attempts: number | null;
 }
 
 export interface BenchmarkRun {
-  id: string;
-  scenario_id: string;
-  scenario_name: string;
-  job_id?: string;
-  status: 'pending' | 'running' | 'completed' | 'failed';
-  started_at: string;
-  completed_at?: string;
-  score?: number;
-  findings_detected: number;
-  findings_expected: number;
-  detection_rate: number;
-  patch_success_rate: number;
-  false_positive_rate: number;
-  metrics?: Record<string, number>;
+  id: number;
+  case_id: string;
+  job_id: string;
+  expected_decision: string;
+  actual_decision: string | null;
+  attempts_used: number | null;
+  duration_ms: number | null;
+  correct: boolean | null;
+  false_verification: boolean;
+  status: 'running' | 'completed';
+  run_at: string;
 }
 
 export async function getBenchmarkScenarios(): Promise<BenchmarkScenario[]> {
   const { data } = await api.get('/api/benchmarks/scenarios');
-  return data;
-}
-
-export async function getBenchmarkScenario(id: string): Promise<BenchmarkScenario> {
-  const { data } = await api.get(`/api/benchmarks/scenarios/${id}`);
   return data;
 }
 
@@ -50,7 +41,7 @@ export async function getBenchmarkRuns(): Promise<BenchmarkRun[]> {
   return data;
 }
 
-export async function getBenchmarkRun(id: string): Promise<BenchmarkRun> {
+export async function getBenchmarkRun(id: number): Promise<BenchmarkRun> {
   const { data } = await api.get(`/api/benchmarks/runs/${id}`);
   return data;
 }

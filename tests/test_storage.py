@@ -5,7 +5,7 @@ import sqlite3
 
 import pytest
 
-from backend.core.models import Artifact, Attempt, Event, Finding, Job
+from backend.core.models import Artifact, Attempt, BenchmarkRun, Event, Finding, Job
 from backend.core.workspace import read_text
 from backend.storage.database import Database
 from backend.storage.repositories import (
@@ -41,6 +41,37 @@ def test_wal_and_foreign_keys_enabled(tmp_path: Path) -> None:
         )
     finally:
         conn.close()
+
+
+def test_benchmark_runs_preserve_expected_and_actual_decisions(tmp_path: Path) -> None:
+    database = Database(tmp_path / "benchmarks.db")
+    connection = database.init_db()
+    repo = database.benchmark_runs(connection)
+    run = repo.create(
+        BenchmarkRun(
+            case_id="repro_fail",
+            job_id="job-benchmark",
+            expected_decision="escalated",
+        )
+    )
+    assert run.id is not None
+
+    completed = BenchmarkRun(
+        id=run.id,
+        case_id=run.case_id,
+        job_id=run.job_id,
+        expected_decision=run.expected_decision,
+        actual_decision="escalated",
+        attempts_used=0,
+        duration_ms=42,
+        correct=True,
+        run_at=run.run_at,
+    )
+    repo.update(completed)
+
+    assert repo.get(run.id) == completed
+    assert repo.list_all() == [completed]
+    connection.close()
 
 
 def test_foreign_key_constraints_enforced(tmp_path: Path) -> None:

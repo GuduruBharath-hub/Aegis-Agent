@@ -6,6 +6,7 @@ import sqlite3
 from backend.storage.repositories import (
     ArtifactRepo,
     AttemptRepo,
+    BenchmarkRunRepo,
     EventRepo,
     FindingRepo,
     JobRepo,
@@ -67,3 +68,7 @@ class Database:
     def findings(self, conn: sqlite3.Connection) -> FindingRepo:
         """Return a FindingRepo bound to the given connection."""
         return FindingRepo(conn)
+
+    def benchmark_runs(self, conn: sqlite3.Connection) -> BenchmarkRunRepo:
+        """Return a BenchmarkRunRepo bound to the given connection."""
+        return BenchmarkRunRepo(conn)

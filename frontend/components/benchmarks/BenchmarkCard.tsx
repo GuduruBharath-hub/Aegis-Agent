@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { Play, Loader2, Code2, Tag } from 'lucide-react';
-import { Progress } from '@/components/ui/Progress';
 import type { BenchmarkScenario, BenchmarkRun } from '@/lib/benchmarks';
 
 interface BenchmarkCardProps {
@@ -79,7 +78,7 @@ export const BenchmarkCard: React.FC<BenchmarkCardProps> = ({
         </div>
         <span style={{ color: 'rgba(212,175,55,0.15)' }}>|</span>
         <span style={{ fontSize: '0.75rem', color: 'rgba(212,175,55,0.4)' }}>
-          {scenario.expected_findings} expected findings
+          Expected: {scenario.expected_decision}
         </span>
       </div>
 
@@ -104,13 +103,17 @@ export const BenchmarkCard: React.FC<BenchmarkCardProps> = ({
       </div>
 
       {/* Latest run */}
-      {latestRun && latestRun.score !== undefined && (
+      {latestRun && (
         <div style={{ padding: '10px 12px', background: 'rgba(0,0,0,0.4)', borderRadius: '8px', border: '1px solid rgba(212,175,55,0.08)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '0.78rem' }}>
-            <span style={{ color: 'rgba(212,175,55,0.45)' }}>Last run score</span>
-            <span style={{ color: '#ffd700', fontWeight: 700 }}>{latestRun.score?.toFixed(1)}%</span>
+            <span style={{ color: 'rgba(212,175,55,0.45)' }}>Last outcome</span>
+            <span style={{ color: latestRun.correct === false ? '#ff6060' : '#a8e063', fontWeight: 700 }}>
+              {latestRun.actual_decision ?? 'running'}
+            </span>
           </div>
-          <Progress value={latestRun.score ?? 0} height={4} />
+          <div style={{ fontSize: '0.72rem', color: 'rgba(212,175,55,0.4)' }}>
+            Attempts: {latestRun.attempts_used ?? '—'}
+          </div>
         </div>
       )}
 

@@ -109,7 +109,7 @@ export const ScenarioSelector: React.FC<ScenarioSelectorProps> = ({
                   {scenario.name}
                 </div>
                 <div style={{ fontSize: '0.75rem', color: 'rgba(200,220,255,0.4)' }}>
-                  {scenario.language} · {scenario.expected_findings} findings
+                  {scenario.language} · expected {scenario.expected_decision}
                 </div>
               </div>
             </button>

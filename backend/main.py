@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.api.errors import install_error_handlers
+from backend.api.routes_benchmarks import router as benchmarks_router
 from backend.api.routes_demo import router as demo_router
 from backend.api.routes_jobs import router as jobs_router
 from backend.api.runtime import ApiRuntime
@@ -39,6 +40,7 @@ def create_app(runtime: ApiRuntime | None = None) -> FastAPI:
     install_error_handlers(app)
     app.include_router(jobs_router)
     app.include_router(demo_router)
+    app.include_router(benchmarks_router)
 
     @app.get("/health")
     async def health() -> dict[str, str]:

@@ -793,3 +793,93 @@ class FindingRepo:
                 )
             )
         return findings
+
+
+# --- Benchmark run SQL statements ---
+SQL_INSERT_BENCHMARK_RUN = """
+INSERT INTO benchmark_runs (
+    case_id, job_id, expected_decision, actual_decision,
+    attempts_used, duration_ms, correct, run_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+"""
+
+SQL_UPDATE_BENCHMARK_RUN = """
+UPDATE benchmark_runs SET
+    actual_decision = ?, attempts_used = ?, duration_ms = ?, correct = ?
+WHERE id = ?;
+"""
+
+SQL_SELECT_BENCHMARK_RUN = """
+SELECT id, case_id, job_id, expected_decision, actual_decision,
+       attempts_used, duration_ms, correct, run_at
+FROM benchmark_runs WHERE id = ?;
+"""
+
+SQL_SELECT_BENCHMARK_RUNS = """
+SELECT id, case_id, job_id, expected_decision, actual_decision,
+       attempts_used, duration_ms, correct, run_at
+FROM benchmark_runs ORDER BY id DESC;
+"""
+
+
+def _row_to_benchmark_run(row: sqlite3.Row) -> BenchmarkRun:
+    correct = row["correct"]
+    return BenchmarkRun(
+        id=row["id"],
+        case_id=row["case_id"],
+        job_id=row["job_id"],
+        expected_decision=row["expected_decision"],
+        actual_decision=row["actual_decision"],
+        attempts_used=row["attempts_used"],
+        duration_ms=row["duration_ms"],
+        correct=None if correct is None else bool(correct),
+        run_at=row["run_at"],
+    )
+
+
+class BenchmarkRunRepo:
+    """Persist benchmark expectations beside actual control-plane outcomes."""
+
+    def __init__(self, conn: sqlite3.Connection) -> None:
+        self._conn = conn
+
+    def create(self, run: BenchmarkRun) -> BenchmarkRun:
+        cursor = self._conn.execute(
+            SQL_INSERT_BENCHMARK_RUN,
+            (
+                run.case_id,
+                run.job_id,
+                run.expected_decision,
+                run.actual_decision,
+                run.attempts_used,
+                run.duration_ms,
+                None if run.correct is None else int(run.correct),
+                run.run_at,
+            ),
+        )
+        self._conn.commit()
+        return replace(run, id=cursor.lastrowid)
+
+    def update(self, run: BenchmarkRun) -> BenchmarkRun:
+        if run.id is None:
+            raise ValueError("benchmark run must be persisted before update")
+        self._conn.execute(
+            SQL_UPDATE_BENCHMARK_RUN,
+            (
+                run.actual_decision,
+                run.attempts_used,
+                run.duration_ms,
+                None if run.correct is None else int(run.correct),
+                run.id,
+            ),
+        )
+        self._conn.commit()
+        return run
+
+    def get(self, run_id: int) -> BenchmarkRun | None:
+        row = self._conn.execute(SQL_SELECT_BENCHMARK_RUN, (run_id,)).fetchone()
+        return None if row is None else _row_to_benchmark_run(row)
+
+    def list_all(self) -> list[BenchmarkRun]:
+        rows = self._conn.execute(SQL_SELECT_BENCHMARK_RUNS).fetchall()
+        return [_row_to_benchmark_run(row) for row in rows]

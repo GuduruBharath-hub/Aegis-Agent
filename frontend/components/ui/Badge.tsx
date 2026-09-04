@@ -3,7 +3,7 @@
 import React from 'react';
 import { capitalize } from '@/lib/utils';
 
-type BadgeVariant =
+export type BadgeVariant =
   | 'critical' | 'high' | 'medium' | 'low' | 'info'
   | 'running' | 'completed' | 'failed' | 'pending' | 'cancelled'
   | 'success' | 'warning' | 'default';

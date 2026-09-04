@@ -16,7 +16,20 @@ from backend.core.models import Job
 
 
 router = APIRouter(prefix="/api/demo", tags=["demo"])
-SUPPORTED_SCENARIOS = frozenset({"sql_basic", "sql_retry"})
+SUPPORTED_SCENARIOS = frozenset(
+    {
+        "sql_basic",
+        "sql_retry",
+        "cmd_basic",
+        "cmd_retry",
+        "sql_unsupported",
+        "repro_fail",
+        "policy_hidden_test",
+        "policy_diff_bomb",
+        "policy_bad_api",
+        "unsolvable",
+    }
+)
 
 
 @router.post(

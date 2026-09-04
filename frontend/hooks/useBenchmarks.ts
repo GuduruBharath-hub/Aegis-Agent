@@ -62,5 +62,11 @@ export function useBenchmarks(): UseBenchmarksResult {
     fetchData();
   }, [fetchData]);
 
+  useEffect(() => {
+    if (!runs.some((run) => run.status === 'running')) return;
+    const timer = window.setInterval(fetchData, 2000);
+    return () => window.clearInterval(timer);
+  }, [fetchData, runs]);
+
   return { scenarios, runs, loading, running, error, triggerRun, refetch: fetchData };
 }
