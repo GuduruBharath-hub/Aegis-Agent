@@ -6,7 +6,8 @@ import json
 import httpx
 from pydantic import SecretStr
 
-from backend.agent.feather_client import FeatherPatchModel
+from backend.agent.feather_client import FeatherPatchModel, extract_json_object
+from backend.agent.llm_client import ModelTechnicalError
 from backend.core.config import FeatherSettings
 from backend.core.models import Finding
 
@@ -86,3 +87,119 @@ def test_feather_adapter_returns_schema_valid_patch_proposal() -> None:
     assert proposal.summary == "Use a bound SQL parameter"
     assert proposal.files[0].path == "app/database.py"
     assert api_key not in repr(proposal)
+
+
+def test_extract_json_tolerates_fences_and_surrounding_prose() -> None:
+    assert extract_json_object('Result:\n```json\n{"ok": true}\n```\nDone.') == {
+        "ok": True
+    }
+
+
+def test_malformed_output_is_reported_then_repaired() -> None:
+    requests: list[dict[str, object]] = []
+    errors: list[ModelTechnicalError] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        requests.append(body)
+        if len(requests) == 1:
+            content = '{"summary": "files are missing"}'
+        else:
+            repair = json.loads(body["messages"][-1]["content"])
+            assert repair["repair"] == "Return only a corrected JSON object."
+            content = json.dumps(
+                {
+                    "summary": "Use a bound parameter",
+                    "files": [
+                        {
+                            "path": "app/database.py",
+                            "new_content": "fixed = True\n",
+                        }
+                    ],
+                }
+            )
+        return httpx.Response(
+            200,
+            json={"choices": [{"message": {"content": content}}]},
+        )
+
+    async def report(error: ModelTechnicalError) -> None:
+        errors.append(error)
+
+    settings = FeatherSettings(
+        FEATHER_API_KEY=SecretStr("test-key"),
+        AEGIS_LLM_TRANSPORT_RETRIES=2,
+    )
+    model = FeatherPatchModel(settings, transport=httpx.MockTransport(handler))
+
+    proposal = asyncio.run(
+        model.generate_patch(FINDING, report_technical_error=report)
+    )
+
+    assert proposal.files[0].new_content == "fixed = True\n"
+    assert len(requests) == 2
+    assert [error.code for error in errors] == ["malformed_model_output"]
+    assert errors[0].request_number == 1
+    assert errors[0].max_requests == 3
+
+
+def test_provider_5xx_retries_with_bounded_backoff() -> None:
+    request_count = 0
+    delays: list[float] = []
+    errors: list[ModelTechnicalError] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal request_count
+        request_count += 1
+        if request_count < 3:
+            return httpx.Response(503, request=request)
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {
+                        "message": {
+                            "content": json.dumps(
+                                {
+                                    "summary": "Recovered",
+                                    "files": [
+                                        {
+                                            "path": "app/database.py",
+                                            "new_content": "fixed = True\n",
+                                        }
+                                    ],
+                                }
+                            )
+                        }
+                    }
+                ]
+            },
+        )
+
+    async def sleep(delay: float) -> None:
+        delays.append(delay)
+
+    async def report(error: ModelTechnicalError) -> None:
+        errors.append(error)
+
+    settings = FeatherSettings(
+        FEATHER_API_KEY=SecretStr("test-key"),
+        AEGIS_LLM_TRANSPORT_RETRIES=2,
+    )
+    model = FeatherPatchModel(
+        settings,
+        transport=httpx.MockTransport(handler),
+        sleep=sleep,
+    )
+
+    proposal = asyncio.run(
+        model.generate_patch(FINDING, report_technical_error=report)
+    )
+
+    assert proposal.summary == "Recovered"
+    assert request_count == 3
+    assert delays == [1, 2]
+    assert [error.code for error in errors] == [
+        "provider_http_503",
+        "provider_http_503",
+    ]

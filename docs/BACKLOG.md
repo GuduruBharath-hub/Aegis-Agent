@@ -115,7 +115,7 @@ The whole loop runs end to end with a **stub** brain. No LLM yet.
       record the answers in `docs/DECISIONS.md`.
       **Done when:** a live call returns a schema-valid `PatchProposal`.
 
-- [ ] **P3-2 · Output handling.** extract → validate → repair, with transport
+- [x] **P3-2 · Output handling.** extract → validate → repair, with transport
       retries separate from patch attempts. §11, §20
       **Done when:** a test feeds malformed output and asserts a
       `technical_error` event fires and the attempt counter does **not** advance.

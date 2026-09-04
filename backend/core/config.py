@@ -24,6 +24,12 @@ class FeatherSettings(BaseSettings):
     temperature: float = Field(default=0.0, ge=0.0, alias="AEGIS_MODEL_TEMPERATURE")
     timeout_seconds: float = Field(default=60.0, gt=0, alias="AEGIS_LLM_TIMEOUT_S")
     concurrency: int = Field(default=1, ge=1, alias="AEGIS_LLM_CONCURRENCY")
+    transport_retries: int = Field(
+        default=2,
+        ge=0,
+        le=5,
+        alias="AEGIS_LLM_TRANSPORT_RETRIES",
+    )
 
 
 def sandbox_env(home: Path, *, executable_path: str = "") -> dict[str, str]:

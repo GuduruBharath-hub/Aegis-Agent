@@ -6,7 +6,12 @@ import json
 from pathlib import Path
 from typing import Protocol
 
-from backend.agent.llm_client import PatchModel, PatchProposal
+from backend.agent.llm_client import (
+    ModelTechnicalError,
+    PatchModel,
+    PatchModelError,
+    PatchProposal,
+)
 from backend.core.event_bus import EventBus
 from backend.core.models import (
     Attempt,
@@ -126,11 +131,24 @@ class Orchestrator:
 
         failure_evidence: FailureEvidence | None = None
         for attempt_number in range(1, job.max_attempts + 1):
-            job = await self._transition(
-                job,
-                JobState.CONTEXT_BUILDING,
-                current_attempt=attempt_number,
-            )
+            job = await self._transition(job, JobState.CONTEXT_BUILDING)
+            job = await self._transition(job, JobState.GENERATING_PATCH)
+            try:
+                proposal = await self.model.generate_patch(
+                    finding,
+                    failure_evidence=failure_evidence,
+                    report_technical_error=lambda error: self._report_model_error(
+                        job,
+                        error,
+                    ),
+                )
+            except PatchModelError as exc:
+                return await self._terminal(
+                    job,
+                    JobState.FAILED,
+                    "failed",
+                    str(exc),
+                )
             attempt = self.attempts.create(
                 Attempt(
                     job_id=job.id,
@@ -138,11 +156,6 @@ class Orchestrator:
                     model=self.model.name,
                     started_at=utcnow_iso(),
                 )
-            )
-            job = await self._transition(job, JobState.GENERATING_PATCH)
-            proposal = await self.model.generate_patch(
-                finding,
-                failure_evidence=failure_evidence,
             )
             await self._emit(
                 job,
@@ -152,7 +165,11 @@ class Orchestrator:
                 data={"files": [file.path for file in proposal.files]},
             )
 
-            job = await self._transition(job, JobState.VALIDATING_PATCH)
+            job = await self._transition(
+                job,
+                JobState.VALIDATING_PATCH,
+                current_attempt=attempt_number,
+            )
             candidate = await asyncio.to_thread(
                 self.workspace.apply_changes,
                 job.id,
@@ -460,6 +477,19 @@ class Orchestrator:
             result.reason,
             severity="success" if result.passed else "warning",
             attempt=attempt,
+        )
+
+    async def _report_model_error(
+        self,
+        job: Job,
+        error: ModelTechnicalError,
+    ) -> None:
+        await self._emit(
+            job,
+            "technical_error",
+            error.message,
+            severity="critical",
+            data=asdict(error),
         )
 
     async def _emit(

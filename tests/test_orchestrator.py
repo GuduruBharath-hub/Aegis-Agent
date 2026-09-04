@@ -2,11 +2,16 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
+import json
 from pathlib import Path
 
+import httpx
 import pytest
+from pydantic import SecretStr
 
+from backend.agent.feather_client import FeatherPatchModel
 from backend.agent.llm_client import PatchFile, PatchProposal, StubPatchModel
+from backend.core.config import FeatherSettings
 from backend.core.event_bus import EventBus
 from backend.core.models import (
     Attempt,
@@ -108,7 +113,7 @@ class RunResult:
     job: Job
     attempts: tuple[Attempt, ...]
     events: tuple[Event, ...]
-    model: StubPatchModel
+    model: StubPatchModel | FeatherPatchModel
     verifier: StubVerifier
     job_workspace: Path
 
@@ -143,6 +148,7 @@ def _execute(
     *,
     max_attempts: int,
     mutate_candidate: bool = False,
+    model_override: FeatherPatchModel | None = None,
 ) -> RunResult:
     tmp_path.mkdir(parents=True, exist_ok=True)
     database = Database(tmp_path / "aegis.db")
@@ -162,7 +168,7 @@ def _execute(
                 max_attempts=max_attempts,
             )
         )
-        model = StubPatchModel(proposals)
+        model = model_override or StubPatchModel(proposals)
         verifier = StubVerifier(mutate_candidate=mutate_candidate)
         workspace_root = tmp_path / ".workspaces"
         orchestrator = Orchestrator(
@@ -307,3 +313,51 @@ def test_phase_two_matrix_reaches_all_four_terminal_states(tmp_path: Path) -> No
             JobState.FAILED,
         )
     }
+
+
+def test_malformed_model_output_does_not_advance_patch_attempt(
+    tmp_path: Path,
+) -> None:
+    request_count = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal request_count
+        request_count += 1
+        content = (
+            '{"summary": "missing files"}'
+            if request_count == 1
+            else GOOD.model_dump_json()
+        )
+        return httpx.Response(
+            200,
+            json={"choices": [{"message": {"content": content}}]},
+        )
+
+    model = FeatherPatchModel(
+        FeatherSettings(
+            FEATHER_API_KEY=SecretStr("test-key"),
+            AEGIS_LLM_TRANSPORT_RETRIES=2,
+        ),
+        transport=httpx.MockTransport(handler),
+    )
+
+    result = _execute(
+        tmp_path,
+        (),
+        max_attempts=1,
+        model_override=model,
+    )
+
+    technical_events = [
+        event for event in result.events if event.type == "technical_error"
+    ]
+    assert result.job.state == JobState.COMPLETED.value
+    assert result.job.current_attempt == 1
+    assert len(result.attempts) == 1
+    assert result.attempts[0].attempt_number == 1
+    assert request_count == 2
+    assert len(technical_events) == 1
+    assert technical_events[0].attempt is None
+    assert json.loads(technical_events[0].data_json or "{}")["code"] == (
+        "malformed_model_output"
+    )
