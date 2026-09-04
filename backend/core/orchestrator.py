@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 from typing import Protocol
 
+from backend.agent.context_builder import ContextBuildError, ContextBuilder
 from backend.agent.llm_client import (
     ModelTechnicalError,
     PatchModel,
@@ -60,6 +61,7 @@ class Orchestrator:
         scanner: FindingScanner,
         model: PatchModel,
         verifier: CandidateVerifier,
+        context_builder: ContextBuilder | None = None,
     ) -> None:
         self.jobs = jobs
         self.attempts = attempts
@@ -70,6 +72,7 @@ class Orchestrator:
         self.scanner = scanner
         self.model = model
         self.verifier = verifier
+        self.context_builder = context_builder or ContextBuilder()
 
     async def run(self, job_id: str) -> Job:
         job = self.jobs.get(job_id)
@@ -132,10 +135,62 @@ class Orchestrator:
         failure_evidence: FailureEvidence | None = None
         for attempt_number in range(1, job.max_attempts + 1):
             job = await self._transition(job, JobState.CONTEXT_BUILDING)
+            try:
+                context = await asyncio.to_thread(
+                    self.context_builder.build,
+                    base,
+                    finding,
+                )
+            except ContextBuildError as exc:
+                await self._emit(
+                    job,
+                    "technical_error",
+                    "Repository context could not be prepared",
+                    severity="critical",
+                    data={
+                        "component": "context_builder",
+                        "code": "context_build_failed",
+                    },
+                )
+                return await self._terminal(
+                    job,
+                    JobState.FAILED,
+                    "failed",
+                    str(exc),
+                )
+            await self._emit(
+                job,
+                "context_built",
+                "Repository context prepared",
+                data={
+                    "bytes": context.bytes_used,
+                    "files": [document.path for document in context.documents],
+                    "secrets_redacted": context.redactions,
+                    "truncated": context.truncated,
+                },
+            )
+            if context.injection_findings:
+                await self._emit(
+                    job,
+                    "injection_detected",
+                    "Potential repository prompt injection detected",
+                    severity="warning",
+                    data={
+                        "findings": [
+                            asdict(injection)
+                            for injection in context.injection_findings
+                        ]
+                    },
+                )
             job = await self._transition(job, JobState.GENERATING_PATCH)
             try:
                 proposal = await self.model.generate_patch(
                     finding,
+                    context=context.rendered,
+                    policy_summary=json.dumps(
+                        asdict(self.validator.policy),
+                        sort_keys=True,
+                    ),
                     failure_evidence=failure_evidence,
                     report_technical_error=lambda error: self._report_model_error(
                         job,

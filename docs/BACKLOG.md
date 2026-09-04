@@ -120,7 +120,7 @@ The whole loop runs end to end with a **stub** brain. No LLM yet.
       **Done when:** a test feeds malformed output and asserts a
       `technical_error` event fires and the attempt counter does **not** advance.
 
-- [ ] **P3-3 · Context builder + redaction + injection scan.** §23, §24, §25
+- [x] **P3-3 · Context builder + redaction + injection scan.** §23, §24, §25
       **Done when:** context for `sql_retry` contains the enclosing function, its
       imports and the public tests, and no file matching the deny globs.
 
