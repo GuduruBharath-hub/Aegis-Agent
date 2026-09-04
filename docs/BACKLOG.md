@@ -34,7 +34,7 @@ Prove the vulnerability is real and detectable before writing any agent code.
       **Done when:** `pytest` passes on the vulnerable code, and hand-applying the
       *naive* fix makes exactly `test_search_partial_match` fail.
 
-- [ ] **P1-5 · SQL attack harness.** `aegis_hidden_tests/sql_injection/harness.py`
+- [x] **P1-5 · SQL attack harness.** `aegis_hidden_tests/sql_injection/harness.py`
       with the payload set from §13 including the `O'Brien` benign case.
       **Done when:** it reports `exploited=True` on the vulnerable tree and
       `exploited=False` on a hand-fixed tree. This is the P1 gate.
