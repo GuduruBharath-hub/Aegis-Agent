@@ -18,7 +18,7 @@ Prove the vulnerability is real and detectable before writing any agent code.
       Record the outcome in `docs/DECISIONS.md` as Tier A or Tier B. §12
       **Done when:** `docs/DECISIONS.md` states the tier and the reason.
 
-- [ ] **P1-2 · Project skeleton.** Create the `backend/` package tree from §03
+- [x] **P1-2 · Project skeleton.** Create the `backend/` package tree from §03
       with empty modules and `__init__.py` files, `requirements.txt`,
       `policies/security_policy.json` (§10), `.env.example` (§19).
       **Done when:** `python -c "import backend.main"` succeeds.

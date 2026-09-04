@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "max_attempts": 3,
+  "max_files_changed": 3,
+  "max_changed_lines": 80,
+  "allow_new_files": false,
+  "allow_file_deletion": false,
+  "allow_new_dependencies": false,
+  "allow_test_modification": false,
+  "allow_ci_modification": false,
+  "require_line_rationale": true,
+  "require_reviewer_checklist": true,
+  "protected_paths": [
+    "aegis_hidden_tests/**",
+    "_aegis_runtime/**",
+    "policies/**",
+    ".github/**",
+    "backend/sandbox/**",
+    "conftest.py",
+    "tests/**",
+    "**/pytest.ini",
+    "**/pyproject.toml",
+    "**/requirements*.txt"
+  ],
+  "denied_symbols": [
+    "eval",
+    "exec",
+    "compile",
+    "__import__",
+    "os.system",
+    "os.popen",
+    "pickle.loads",
+    "marshal.loads",
+    "subprocess.getoutput"
+  ],
+  "denied_imports": [
+    "socket",
+    "requests",
+    "urllib",
+    "urllib3",
+    "httpx",
+    "ftplib",
+    "telnetlib",
+    "smtplib",
+    "ctypes"
+  ],
+  "budgets": {
+    "job_wall_clock_s": 480,
+    "sandbox_timeout_s": 90,
+    "llm_tokens_per_job": 60000
+  }
+}
