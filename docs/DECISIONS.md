@@ -101,3 +101,32 @@ why, and what would have to change to revisit it.
   chat-completions protocol, so a slot is three environment variables.
 - **Revisit only if:** a provider is added that is not OpenAI-compatible; it
   then needs its own `PatchModel` implementation, not a new slot.
+
+## 2026-09-05 - Model chain ordered by measurement, not reputation
+
+Probed every candidate through the real client with the real prompt, one at a
+time, 100s ceiling, no transport retries:
+
+| model | latency | result |
+|---|---|---|
+| `deepseek-ai/DeepSeek-V3.2` | 34.5s | valid PatchProposal |
+| `Qwen/Qwen3-Coder-480B-A35B-Instruct` | 34.5s | valid PatchProposal |
+| `zai-org/GLM-5.3` | 93.6s | transport failure |
+| `zai-org/GLM-5.3-Flash` | 224.8s | invalid PatchProposal |
+| `zai-org/GLM-4.7-Flash` | 85.2s | invalid PatchProposal |
+
+- **Decision:** chain is DeepSeek-V3.2 -> Qwen3-Coder-480B -> GLM-5.3.
+- **Why not GLM first, as originally intended:** no GLM variant served reliably
+  through Featherless. A slow primary is worse than a missing one: the router
+  waits out its timeout on *every* attempt before failing over, so three
+  attempts would spend roughly 300s of dead time and threaten the 480s job
+  wall clock. GLM stays as the last slot, where it is reached only when both
+  working providers are unavailable.
+- **If GLM is wanted as primary:** use Zhipu's own endpoint rather than
+  Featherless. The failure looks like a hosting problem, not a model problem.
+- **Concurrency is load-bearing:** an initial probe ran all three slots in
+  parallel on one key and got HTTP 429 from two of them. Re-running
+  sequentially cleared it. `AEGIS_LLM_CONCURRENCY=1` is not a default to relax.
+- **One key is not redundancy:** all three slots share a Featherless account
+  and quota. This chain survives a bad or slow *model*; it does not survive an
+  exhausted *key*. For that, one slot must point at a different vendor.
