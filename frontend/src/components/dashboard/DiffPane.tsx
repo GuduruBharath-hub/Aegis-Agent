@@ -2,6 +2,16 @@ import type { AttemptDetail } from "@/lib/api";
 
 interface DiffPaneProps {
   attempt: AttemptDetail;
+  selected: DiffLineSelection | null;
+  onSelectLine: (selection: DiffLineSelection) => void;
+}
+
+export interface DiffLineSelection {
+  path: string;
+  oldLine: number | null;
+  newLine: number | null;
+  side: "old" | "new";
+  text: string;
 }
 
 interface DiffRow {
@@ -17,7 +27,7 @@ interface DiffFile {
   rows: DiffRow[];
 }
 
-export function DiffPane({ attempt }: DiffPaneProps) {
+export function DiffPane({ attempt, selected, onSelectLine }: DiffPaneProps) {
   const files = parseUnifiedDiff(attempt.diff ?? "");
   const stats = [
     `${attempt.files_changed ?? 0} ${attempt.files_changed === 1 ? "file" : "files"}`,
@@ -49,8 +59,22 @@ export function DiffPane({ attempt }: DiffPaneProps) {
               <div className="min-w-[760px] font-mono text-[11px] leading-5">
                 {file.rows.map((row, index) => (
                   <div className="grid grid-cols-2" key={`${file.path}-${index}`}>
-                    <DiffCell line={row.oldLine} side="old" text={row.oldText} tone={row.kind === "changed" ? "removed" : "context"} />
-                    <DiffCell line={row.newLine} side="new" text={row.newText} tone={row.kind === "changed" ? "added" : "context"} />
+                    <DiffCell
+                      active={isSelected(selected, file.path, row)}
+                      line={row.oldLine}
+                      onSelect={() => onSelectLine(selectionFor(file.path, row, "old"))}
+                      side="old"
+                      text={row.oldText}
+                      tone={row.kind === "changed" ? "removed" : "context"}
+                    />
+                    <DiffCell
+                      active={isSelected(selected, file.path, row)}
+                      line={row.newLine}
+                      onSelect={() => onSelectLine(selectionFor(file.path, row, "new"))}
+                      side="new"
+                      text={row.newText}
+                      tone={row.kind === "changed" ? "added" : "context"}
+                    />
                   </div>
                 ))}
               </div>
@@ -73,9 +97,11 @@ interface DiffCellProps {
   side: "old" | "new";
   text: string;
   tone: "added" | "removed" | "context";
+  active: boolean;
+  onSelect: () => void;
 }
 
-function DiffCell({ line, side, text, tone }: DiffCellProps) {
+function DiffCell({ line, side, text, tone, active, onSelect }: DiffCellProps) {
   const color = {
     added: side === "new" ? "bg-emerald-500/10 text-emerald-100" : "bg-zinc-950 text-zinc-700",
     removed: side === "old" ? "bg-rose-500/10 text-rose-100" : "bg-zinc-950 text-zinc-700",
@@ -83,14 +109,54 @@ function DiffCell({ line, side, text, tone }: DiffCellProps) {
   }[tone];
   const marker = tone === "added" && side === "new" ? "+" : tone === "removed" && side === "old" ? "−" : " ";
 
-  return (
-    <div className={`grid min-w-0 grid-cols-[42px_18px_1fr] border-r border-zinc-900 ${color}`}>
+  const content = (
+    <>
       <span className="select-none border-r border-zinc-900 px-2 text-right text-zinc-700">
         {line ?? ""}
       </span>
       <span className="select-none text-center opacity-70">{marker}</span>
       <code className="block overflow-hidden whitespace-pre px-1">{text}</code>
-    </div>
+    </>
+  );
+  const className = `grid min-w-0 grid-cols-[42px_18px_1fr] border-r border-zinc-900 ${color} ${active ? "ring-1 ring-inset ring-sky-400" : ""}`;
+  if (tone === "context" || line === null) {
+    return <div className={className}>{content}</div>;
+  }
+  return (
+    <button
+      aria-label={`Explain ${side === "new" ? "candidate" : "original"} line ${line}`}
+      className={`${className} cursor-pointer text-left hover:brightness-125 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-sky-300`}
+      onClick={onSelect}
+      type="button"
+    >
+      {content}
+    </button>
+  );
+}
+
+function selectionFor(
+  path: string,
+  row: DiffRow,
+  side: DiffLineSelection["side"],
+): DiffLineSelection {
+  return {
+    path,
+    oldLine: row.oldLine,
+    newLine: row.newLine,
+    side,
+    text: side === "old" ? row.oldText : row.newText,
+  };
+}
+
+function isSelected(
+  selected: DiffLineSelection | null,
+  path: string,
+  row: DiffRow,
+): boolean {
+  return (
+    selected?.path === path &&
+    selected.oldLine === row.oldLine &&
+    selected.newLine === row.newLine
   );
 }
 

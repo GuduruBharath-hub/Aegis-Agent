@@ -3,7 +3,11 @@
 import { useEffect, useState } from "react";
 
 import { AttemptTabs } from "@/components/dashboard/AttemptTabs";
-import { DiffPane } from "@/components/dashboard/DiffPane";
+import {
+  DiffPane,
+  type DiffLineSelection,
+} from "@/components/dashboard/DiffPane";
+import { ExplainPane } from "@/components/dashboard/ExplainPane";
 import { GateRow } from "@/components/dashboard/GateRow";
 import { TimelinePane } from "@/components/dashboard/TimelinePane";
 import {
@@ -24,9 +28,14 @@ interface LoadedAttempt {
   detail: AttemptDetail;
 }
 
+interface SelectedLine extends DiffLineSelection {
+  attempt: number;
+}
+
 export function AttemptWorkbench({ jobId, attempts, events }: AttemptWorkbenchProps) {
   const [chosen, setChosen] = useState<number | null>(null);
   const [loaded, setLoaded] = useState<LoadedAttempt | null>(null);
+  const [selectedLine, setSelectedLine] = useState<SelectedLine | null>(null);
   const [error, setError] = useState<string | null>(null);
   const selected = attempts.some((attempt) => attempt.attempt === chosen)
     ? chosen
@@ -60,6 +69,7 @@ export function AttemptWorkbench({ jobId, attempts, events }: AttemptWorkbenchPr
   }
 
   const detail = loaded?.number === selected ? loaded.detail : null;
+  const currentLine = selectedLine?.attempt === selected ? selectedLine : null;
   return (
     <main className="mx-auto max-w-[1500px] px-5 py-8 md:px-8">
       <AttemptTabs attempts={attempts} selected={selected} onSelect={setChosen} />
@@ -72,8 +82,15 @@ export function AttemptWorkbench({ jobId, attempts, events }: AttemptWorkbenchPr
         {detail ? (
           <>
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(320px,0.8fr)]">
-              <DiffPane attempt={detail} />
-              <TimelinePane attempt={selected} events={events} />
+              <DiffPane
+                attempt={detail}
+                onSelectLine={(line) => setSelectedLine({ ...line, attempt: selected })}
+                selected={currentLine}
+              />
+              <div className="grid content-start gap-4">
+                <ExplainPane attempt={detail} selection={currentLine} />
+                <TimelinePane attempt={selected} events={events} />
+              </div>
             </div>
             <GateRow attempt={detail} />
           </>

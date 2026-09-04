@@ -151,7 +151,7 @@ The whole loop runs end to end with a **stub** brain. No LLM yet.
 - [x] **P4-3 · DiffPane + TimelinePane + AttemptTabs.** §06
 - [x] **P4-4 · GateRow** — six cards, raw evidence behind `<details>`. §06
 - [x] **P4-5 · VerdictBanner + GuardrailList.** Renders `final_decision` only. §06
-- [ ] **P4-6 · ExplainPane** — click a changed line, see its rationale. §13B
+- [x] **P4-6 · ExplainPane** — click a changed line, see its rationale. §13B
 
 > **P4 GATE:** someone who has not seen the project can narrate what happened
 > from the screen alone, including why attempt 1 was rejected. Test on a real person.
