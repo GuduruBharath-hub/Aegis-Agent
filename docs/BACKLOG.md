@@ -63,7 +63,7 @@ The whole loop runs end to end with a **stub** brain. No LLM yet.
       **Done when:** a test asserts an illegal transition raises, and that a
       terminal `final_decision` cannot be overwritten.
 
-- [ ] **P2-3 · Event bus.** Persist-then-publish, global monotonic `seq`,
+- [x] **P2-3 · Event bus.** Persist-then-publish, global monotonic `seq`,
       per-job `asyncio.Queue`. §09
       **Done when:** a subscriber attaching mid-run receives the full backlog
       followed by live events, with no gap and no duplicate.
