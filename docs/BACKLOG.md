@@ -88,7 +88,7 @@ The whole loop runs end to end with a **stub** brain. No LLM yet.
       **Done when:** H1/H2/H3 comparison is unit-tested, including a deliberate
       mismatch producing `FAILED` and no delivery.
 
-- [ ] **P2-8 · Sandbox runner.** The tier chosen in P1-1, plus `run_all.py`
+- [x] **P2-8 · Sandbox runner.** The tier chosen in P1-1, plus `run_all.py`
       writing `report.json`. §12
       **Done when:** running it against `sql_retry` returns a structured report
       containing attack, pytest and bandit results. Exit code is 0 on a failing
