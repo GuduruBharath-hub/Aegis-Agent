@@ -94,7 +94,7 @@ The whole loop runs end to end with a **stub** brain. No LLM yet.
       containing attack, pytest and bandit results. Exit code is 0 on a failing
       candidate (the harness ran; the candidate lost).
 
-- [ ] **P2-9 · Credential isolation test.** §17
+- [x] **P2-9 · Credential isolation test.** §17
       **Done when:** a test asserts `config.sandbox_env()` has no key matching
       `TOKEN|KEY|SECRET|PASSWORD|CREDENTIAL` and no value equal to a set token.
 
