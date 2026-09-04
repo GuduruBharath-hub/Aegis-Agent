@@ -5,7 +5,9 @@ import { useCallback, useEffect, useState } from "react";
 import { JobHeader } from "@/components/dashboard/JobHeader";
 import { PipelineRail } from "@/components/dashboard/PipelineRail";
 import { AttemptWorkbench } from "@/components/dashboard/AttemptWorkbench";
+import { GuardrailList } from "@/components/dashboard/GuardrailList";
 import { useJobStream } from "@/hooks/useJobStream";
+import { VerdictBanner } from "@/components/dashboard/VerdictBanner";
 import {
   getJob,
   listJobAttempts,
@@ -78,6 +80,10 @@ export function JobDashboard({ jobId }: JobDashboardProps) {
         attempts={attempts}
         events={stream.events}
       />
+      <div className="mx-auto grid max-w-[1500px] gap-4 px-5 pb-10 md:px-8">
+        <VerdictBanner decision={job.final_decision} reason={job.final_reason} />
+        <GuardrailList />
+      </div>
       {stream.error ? (
         <div className="mx-auto mt-4 max-w-[1500px] px-5 md:px-8">
           <p className="border border-amber-500/30 bg-amber-500/10 px-4 py-3 font-mono text-xs text-amber-200">
