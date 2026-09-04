@@ -8,6 +8,7 @@ credentials.*
 secrets.*
 
 # --- aegis runtime state ---
+backend.log
 aegis.db
 aegis.db-wal
 aegis.db-shm
