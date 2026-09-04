@@ -43,6 +43,10 @@ VULNERABLE_QUERY = '''        rows = active_connection.execute(
             + term
             + "%' ORDER BY id"
         ).fetchall()'''
+GOOD_QUERY = '''        rows = active_connection.execute(
+            "SELECT id, name, email FROM users WHERE name LIKE ? ORDER BY id",
+            (f"%{term}%",),
+        ).fetchall()'''
 REGRESSION_QUERY = '''        rows = active_connection.execute(
             "SELECT id, name, email FROM users WHERE name LIKE ? ORDER BY id",
             (term,),
@@ -258,6 +262,75 @@ class RetryThenFeatherModel:
         )
 
 
+@dataclass(slots=True)
+class DeterministicPatchModel:
+    name: str = "deterministic-verified-fixture"
+    calls: int = 0
+
+    async def generate_patch(
+        self,
+        finding: Finding,
+        context: str = "",
+        policy_summary: str = "",
+        failure_evidence: FailureEvidence | None = None,
+        report_technical_error: TechnicalErrorReporter | None = None,
+    ) -> PatchProposal:
+        del finding, context, policy_summary, failure_evidence, report_technical_error
+        self.calls += 1
+        return PatchProposal(
+            summary="Bind the wildcard search term",
+            strategy="parameterized_query",
+            files=(
+                PatchFile(
+                    path="app/database.py",
+                    new_content=VULNERABLE_SOURCE.replace(
+                        VULNERABLE_QUERY,
+                        GOOD_QUERY,
+                    ),
+                ),
+            ),
+            injection_observed=False,
+            rationale=PatchRationale(
+                vulnerability_mechanism=(
+                    "Caller input is concatenated directly into executable SQL."
+                ),
+                fix_mechanism=(
+                    "Driver binding keeps input outside SQL syntax while the bound "
+                    "value retains the wildcard behavior."
+                ),
+                line_rationales=(
+                    LineRationale(
+                        path="app/database.py",
+                        changed_lines=(77, 78),
+                        change_kind="parameterize",
+                        why=(
+                            "The query becomes constant and the wildcard-wrapped term "
+                            "is supplied only as data to SQLite."
+                        ),
+                        earns="security.payload[0]",
+                    ),
+                ),
+                behaviour_preservation=(
+                    BehaviourPreservation(
+                        behaviour="partial-name searching remains available",
+                        preserved_by="the bound value includes both LIKE wildcards",
+                        proven_by="tests/test_database.py::test_search_partial_match",
+                    ),
+                ),
+                rejected_alternatives=(
+                    RejectedAlternative(
+                        approach="bind the raw term without wildcards",
+                        why_not="that removes the documented substring-match behavior",
+                    ),
+                ),
+                residual_risk=("Other SQL call sites need separate verification.",),
+                reviewer_must_confirm=(
+                    "Confirm wildcard substring matching remains intentional.",
+                ),
+            ),
+        )
+
+
 class SmokeDelivery:
     async def create_pull_request(self, **kwargs: object) -> PullRequestResult:
         branch = str(kwargs["branch"])
@@ -268,7 +341,7 @@ class SmokeDelivery:
         )
 
 
-async def main(*, deliver: bool = False) -> None:
+async def main(*, deliver: bool = False, deterministic: bool = False) -> None:
     runtime_settings = RuntimeSettings()
     runner = SandboxRunner(PROJECT_ROOT)
     runner.ensure_image()
@@ -291,8 +364,10 @@ async def main(*, deliver: bool = False) -> None:
                     max_attempts=3,
                 )
             )
-            model = RetryThenFeatherModel(
-                FeatherPatchModel(FeatherSettings())
+            model = (
+                DeterministicPatchModel()
+                if deterministic
+                else RetryThenFeatherModel(FeatherPatchModel(FeatherSettings()))
             )
             orchestrator = Orchestrator(
                 jobs=jobs,
@@ -337,7 +412,11 @@ async def main(*, deliver: bool = False) -> None:
                     indent=2,
                 )
             )
-            if result.final_decision != "verified" or len(recorded_attempts) < 2:
+            minimum_attempts = 1 if deterministic else 2
+            if (
+                result.final_decision != "verified"
+                or len(recorded_attempts) < minimum_attempts
+            ):
                 raise SystemExit("retry prompt smoke did not self-correct")
         finally:
             connection.close()
@@ -352,5 +431,15 @@ if __name__ == "__main__":
         action="store_true",
         help="use configured GitHub REST delivery instead of the non-mutating stub",
     )
+    parser.add_argument(
+        "--deterministic",
+        action="store_true",
+        help="use the known-good fixture proposal while retaining every trusted gate",
+    )
     arguments = parser.parse_args()
-    asyncio.run(main(deliver=arguments.deliver))
+    asyncio.run(
+        main(
+            deliver=arguments.deliver,
+            deterministic=arguments.deterministic,
+        )
+    )
