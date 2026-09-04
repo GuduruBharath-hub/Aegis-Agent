@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import asyncio
 from dataclasses import dataclass
 import json
@@ -16,7 +17,7 @@ from backend.agent.llm_client import (
     RejectedAlternative,
     TechnicalErrorReporter,
 )
-from backend.core.config import FeatherSettings
+from backend.core.config import FeatherSettings, GitHubSettings
 from backend.core.event_bus import EventBus
 from backend.core.models import (
     CandidateEvidence,
@@ -27,7 +28,7 @@ from backend.core.models import (
 )
 from backend.core.orchestrator import Orchestrator
 from backend.core.workspace import WorkspaceManager, read_text
-from backend.github.client import PullRequestResult
+from backend.github.client import GitHubClient, PullRequestResult
 from backend.sandbox.runner import SandboxRunner
 from backend.scanner.normalizer import scan_repository
 from backend.storage.database import Database
@@ -267,7 +268,7 @@ class SmokeDelivery:
         )
 
 
-async def main() -> None:
+async def main(*, deliver: bool = False) -> None:
     runner = SandboxRunner(PROJECT_ROOT)
     runner.ensure_image()
     with tempfile.TemporaryDirectory(prefix="aegis-retry-smoke-") as temporary:
@@ -307,7 +308,11 @@ async def main() -> None:
                 scanner=RepositoryScanner(),
                 model=model,
                 verifier=SqlRetryVerifier(runner),
-                delivery=SmokeDelivery(),
+                delivery=(
+                    GitHubClient(GitHubSettings())
+                    if deliver
+                    else SmokeDelivery()
+                ),
             )
             result = await orchestrator.run(job.id)
             recorded_attempts = attempts.list_for_job(job.id)
@@ -325,6 +330,7 @@ async def main() -> None:
                             for attempt in recorded_attempts
                         ],
                         "failure_evidence_used": model.calls > 1,
+                        "pr_url": result.pr_url,
                     },
                     indent=2,
                 )
@@ -336,4 +342,13 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    parser = argparse.ArgumentParser(
+        description="Verify retry evidence, optionally creating a real GitHub PR.",
+    )
+    parser.add_argument(
+        "--deliver",
+        action="store_true",
+        help="use configured GitHub REST delivery instead of the non-mutating stub",
+    )
+    arguments = parser.parse_args()
+    asyncio.run(main(deliver=arguments.deliver))
