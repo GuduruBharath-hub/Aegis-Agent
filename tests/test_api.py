@@ -190,6 +190,45 @@ def test_sse_last_event_id_replays_only_newer_events(tmp_path: Path) -> None:
     runtime.connection.close()
 
 
+def test_sse_query_cursor_bridges_history_to_event_source(tmp_path: Path) -> None:
+    runtime = _runtime(tmp_path)
+    job = runtime.jobs.create(
+        Job(
+            id="job_query_replay",
+            repository="fixture",
+            repository_url="fixture",
+            base_sha="HEAD",
+            mode="demo",
+            max_attempts=1,
+            state="completed",
+            final_decision="verified",
+        )
+    )
+    first = runtime.events.create(
+        Event(job_id=job.id, type="job_created", severity="info", title="Created")
+    )
+    final = runtime.events.create(
+        Event(
+            job_id=job.id,
+            type="state_changed",
+            severity="success",
+            title="Completed",
+            data_json='{"state":"completed"}',
+        )
+    )
+    assert first.seq is not None
+    assert final.seq is not None
+
+    with TestClient(create_app(runtime)) as client:
+        response = client.get(
+            f"/api/jobs/{job.id}/stream?after={first.seq}",
+        )
+
+    assert f"id: {first.seq}\n" not in response.text
+    assert f"id: {final.seq}\n" in response.text
+    runtime.connection.close()
+
+
 def test_api_errors_share_one_envelope(tmp_path: Path) -> None:
     runtime = _runtime(tmp_path)
     with TestClient(create_app(runtime)) as client:

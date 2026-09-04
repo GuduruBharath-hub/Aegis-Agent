@@ -80,14 +80,22 @@ async def stream_events(
     job_id: str,
     request: Request,
     last_event_id: str | None = Header(default=None, alias="Last-Event-ID"),
+    after: int = 0,
 ) -> StreamingResponse:
     runtime = get_runtime(request)
     _require_job(runtime, job_id)
+    if after < 0:
+        raise ApiError(
+            422,
+            "validation",
+            "invalid_event_cursor",
+            "after must be non-negative",
+        )
     return event_stream_response(
         runtime,
         job_id,
         request,
-        _event_cursor(last_event_id),
+        max(after, _event_cursor(last_event_id)),
     )
 
 

@@ -145,7 +145,7 @@ The whole loop runs end to end with a **stub** brain. No LLM yet.
 
 ## P4 — The screen
 
-- [ ] **P4-1 · Scaffold + data layer.** Next.js, `lib/api.ts` mirroring the §05
+- [x] **P4-1 · Scaffold + data layer.** Next.js, `lib/api.ts` mirroring the §05
       schemas, `useJobStream` (history then live tail). §06
 - [ ] **P4-2 · JobHeader, PipelineRail** with the retry arc. §06
 - [ ] **P4-3 · DiffPane + TimelinePane + AttemptTabs.** §06
