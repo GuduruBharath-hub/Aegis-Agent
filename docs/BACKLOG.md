@@ -78,7 +78,7 @@ The whole loop runs end to end with a **stub** brain. No LLM yet.
       **Done when:** tests cover path escapes (`../`, absolute, backslash), each
       denied import, and each diff limit at boundary and boundary+1.
 
-- [ ] **P2-6 · The gate.** `verification/gate.py::evaluate` as a pure function
+- [x] **P2-6 · The gate.** `verification/gate.py::evaluate` as a pure function
       over six results. §13, §13B
       **Done when:** an exhaustive test over all 64 boolean combinations asserts
       `verified` is true for exactly one.
