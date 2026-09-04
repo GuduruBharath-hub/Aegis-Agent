@@ -348,6 +348,12 @@ def test_good_stub_candidate_completes_without_api_key(
     assert result.delivery.calls[0]["files"] == {
         "app/database.py": GOOD.files[0].new_content
     }
+    pr_body = str(result.delivery.calls[0]["body"])
+    assert "### Evidence" in pr_body
+    assert "### Annotated diff" in pr_body
+    assert "### Reviewer brief" in pr_body
+    assert "### What was NOT proven" in pr_body
+    assert "**This PR requires human review. AegisAgent cannot merge it.**" in pr_body
     assert result.attempts[0].diff_ref is not None
     assert result.attempts[0].pytest_ref is not None
     assert result.attempts[0].bandit_ref is not None

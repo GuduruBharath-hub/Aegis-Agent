@@ -162,7 +162,7 @@ The whole loop runs end to end with a **stub** brain. No LLM yet.
 
 - [x] **P5-1 · GitHub REST delivery** + H3 comparison. §15
       **Done when:** a real PR exists on a real repository.
-- [ ] **P5-2 · PR body** — annotated diff, evidence table, reviewer brief,
+- [x] **P5-2 · PR body** — annotated diff, evidence table, reviewer brief,
       "what was NOT proven". §13B, §15
 - [ ] **P5-3 · Command-injection adapter + `cmd_retry` benchmark.** §16
       If this is not mostly a copy of the SQL path, the adapter interface is

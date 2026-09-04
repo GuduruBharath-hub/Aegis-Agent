@@ -28,6 +28,7 @@ from backend.core.models import (
 from backend.core.states import JobState
 from backend.core.workspace import WorkspaceManager, read_text
 from backend.github.client import GitHubDeliveryError, PullRequestResult
+from backend.github.pr_body import render_pr_body
 from backend.storage.repositories import (
     ArtifactRepo,
     AttemptRepo,
@@ -396,7 +397,7 @@ class Orchestrator:
                     integrity=integrity.passed,
                     explain=explanation.passed,
                 )
-                self._record_verdict(
+                attempt = self._record_verdict(
                     attempt,
                     proposal,
                     policy,
@@ -426,6 +427,7 @@ class Orchestrator:
                         finding,
                         proposal,
                         integrity.pre_run,
+                        attempt,
                     )
 
                 if not integrity.passed:
@@ -471,6 +473,7 @@ class Orchestrator:
         finding: Finding,
         proposal: PatchProposal,
         verified_hash: str,
+        verified_attempt: Attempt,
     ) -> Job:
         job = await self._transition(job, JobState.CREATING_PR)
         changes = {file.path: file.new_content for file in proposal.files}
@@ -499,6 +502,19 @@ class Orchestrator:
                 )
 
             branch = _branch_name(finding)
+            diff_artifact = (
+                self.artifacts.get(verified_attempt.diff_ref)
+                if verified_attempt.diff_ref is not None
+                else None
+            )
+            body = render_pr_body(
+                job=job,
+                finding=finding,
+                attempts=self.attempts.list_for_job(job.id),
+                verified_attempt=verified_attempt,
+                diff=diff_artifact.content if diff_artifact is not None else "",
+                delivered_hash=delivered_hash,
+            )
             try:
                 pull = await self.delivery.create_pull_request(
                     expected_base_sha=job.base_sha,
@@ -508,10 +524,7 @@ class Orchestrator:
                         for path in sorted(changes)
                     },
                     title=f"Fix {finding.cwe}: {finding.symbol}",
-                    body=(
-                        f"AegisAgent job `{job.id}` verified this candidate through "
-                        "all six configured gates. Human review is required."
-                    ),
+                    body=body,
                     commit_message=f"fix: remediate {finding.cwe} in {finding.symbol}",
                 )
             except GitHubDeliveryError as exc:
