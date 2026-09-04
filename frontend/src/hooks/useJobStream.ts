@@ -76,6 +76,10 @@ export function useJobStream(
         if (disposed) return;
 
         let lastSequence = history.at(-1)?.seq ?? 0;
+        if (history.some(isTerminalStateEvent)) {
+          setState({ events: history, status: "closed", error: null });
+          return;
+        }
         setState({ events: history, status: "connecting", error: null });
         source = new EventSource(
           `/api/jobs/${encodeURIComponent(jobId)}/stream?after=${lastSequence}`,
@@ -93,8 +97,7 @@ export function useJobStream(
           }));
           onEventRef.current?.(event);
           if (
-            event.type === "state_changed" &&
-            TERMINAL_STATES.has(String(event.data?.state))
+            isTerminalStateEvent(event)
           ) {
             source?.close();
             setState((current) => ({ ...current, status: "closed" }));
@@ -133,4 +136,11 @@ export function useJobStream(
   }, [jobId]);
 
   return state;
+}
+
+function isTerminalStateEvent(event: JobEvent): boolean {
+  return (
+    event.type === "state_changed" &&
+    TERMINAL_STATES.has(String(event.data?.state))
+  );
 }

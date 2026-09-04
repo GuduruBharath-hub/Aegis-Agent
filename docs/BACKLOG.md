@@ -147,7 +147,7 @@ The whole loop runs end to end with a **stub** brain. No LLM yet.
 
 - [x] **P4-1 · Scaffold + data layer.** Next.js, `lib/api.ts` mirroring the §05
       schemas, `useJobStream` (history then live tail). §06
-- [ ] **P4-2 · JobHeader, PipelineRail** with the retry arc. §06
+- [x] **P4-2 · JobHeader, PipelineRail** with the retry arc. §06
 - [ ] **P4-3 · DiffPane + TimelinePane + AttemptTabs.** §06
 - [ ] **P4-4 · GateRow** — six cards, raw evidence behind `<details>`. §06
 - [ ] **P4-5 · VerdictBanner + GuardrailList.** Renders `final_decision` only. §06
