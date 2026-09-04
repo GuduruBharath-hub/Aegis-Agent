@@ -160,7 +160,7 @@ The whole loop runs end to end with a **stub** brain. No LLM yet.
 
 ## P5 — Delivery and refusal
 
-- [ ] **P5-1 · GitHub REST delivery** + H3 comparison. §15
+- [x] **P5-1 · GitHub REST delivery** + H3 comparison. §15
       **Done when:** a real PR exists on a real repository.
 - [ ] **P5-2 · PR body** — annotated diff, evidence table, reviewer brief,
       "what was NOT proven". §13B, §15
