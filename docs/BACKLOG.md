@@ -129,7 +129,7 @@ The whole loop runs end to end with a **stub** brain. No LLM yet.
       **Done when:** `sql_retry` reaches `verified`, having used the failure
       evidence rather than guessing.
 
-- [ ] **P3-5 · Rationale + explainability gate.** §13B
+- [x] **P3-5 · Rationale + explainability gate.** §13B
       **Done when:** the six coverage checks are tested, including a **fabricated
       test citation**, which must fail the gate.
 

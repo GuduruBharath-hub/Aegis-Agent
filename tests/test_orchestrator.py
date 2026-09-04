@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
+from difflib import SequenceMatcher
 import json
 from pathlib import Path
 
@@ -10,7 +11,15 @@ import pytest
 from pydantic import SecretStr
 
 from backend.agent.feather_client import FeatherPatchModel
-from backend.agent.llm_client import PatchFile, PatchProposal, StubPatchModel
+from backend.agent.llm_client import (
+    BehaviourPreservation,
+    LineRationale,
+    PatchFile,
+    PatchProposal,
+    PatchRationale,
+    RejectedAlternative,
+    StubPatchModel,
+)
 from backend.core.config import FeatherSettings
 from backend.core.event_bus import EventBus
 from backend.core.models import (
@@ -113,7 +122,8 @@ class StubVerifier:
             security=security,
             regression=regression,
             post_scan=post_scan,
-            explain=EvidenceResult(True, "stub rationale is complete"),
+            passed_test_ids=("tests/test_database.py::test_create_database",),
+            evidence_refs=("security.payload[0]",),
         )
 
 
@@ -127,26 +137,83 @@ class RunResult:
     job_workspace: Path
 
 
-def _proposal(summary: str, path: str, content: str) -> PatchProposal:
+def _proposal(
+    summary: str,
+    path: str,
+    original_content: str,
+    content: str,
+) -> PatchProposal:
+    changed_lines: list[int] = []
+    matcher = SequenceMatcher(
+        None,
+        original_content.splitlines(),
+        content.splitlines(),
+        autojunk=False,
+    )
+    for operation, _, _, new_start, new_end in matcher.get_opcodes():
+        if operation != "equal":
+            changed_lines.extend(range(new_start + 1, new_end + 1))
     return PatchProposal(
         summary=summary,
+        strategy="parameterized_query" if path.endswith("database.py") else "other",
         files=(PatchFile(path=path, new_content=content),),
+        injection_observed=False,
+        rationale=PatchRationale(
+            vulnerability_mechanism=(
+                "Caller-controlled input becomes executable SQL syntax in this query."
+            ),
+            fix_mechanism=(
+                "A driver-managed binding keeps caller input outside the SQL grammar."
+            ),
+            line_rationales=(
+                LineRationale(
+                    path=path,
+                    changed_lines=tuple(changed_lines),
+                    change_kind=(
+                        "parameterize" if path.endswith("database.py") else "other"
+                    ),
+                    why=(
+                        "These changes separate untrusted data from executable query "
+                        "syntax while retaining the intended operation."
+                    ),
+                    earns="security.payload[0]",
+                ),
+            ),
+            behaviour_preservation=(
+                BehaviourPreservation(
+                    behaviour="database setup remains operational",
+                    preserved_by="the patch leaves database creation unchanged",
+                    proven_by="tests/test_database.py::test_create_database",
+                ),
+            ),
+            rejected_alternatives=(
+                RejectedAlternative(
+                    approach="strip punctuation from input",
+                    why_not="that would reject legitimate user data",
+                ),
+            ),
+            residual_risk=("Other call sites require independent review.",),
+            reviewer_must_confirm=("Confirm the bound value keeps expected semantics.",),
+        ),
     )
 
 
 GOOD = _proposal(
     "Bind the wildcard search term",
     "app/database.py",
+    VULNERABLE_SOURCE,
     VULNERABLE_SOURCE.replace(VULNERABLE_QUERY, GOOD_QUERY),
 )
 REGRESSION = _proposal(
     "Bind the raw search term",
     "app/database.py",
+    VULNERABLE_SOURCE,
     VULNERABLE_SOURCE.replace(VULNERABLE_QUERY, REGRESSION_QUERY),
 )
 PROTECTED = _proposal(
     "Change the test fixture",
     "tests/conftest.py",
+    read_text(BENCHMARK / "tests" / "conftest.py"),
     read_text(BENCHMARK / "tests" / "conftest.py") + "\n# forbidden edit\n",
 )
 
@@ -221,6 +288,7 @@ def test_good_stub_candidate_completes_without_api_key(
     assert result.job.final_decision == "verified"
     assert len(result.attempts) == 1
     assert result.attempts[0].decision == "verified"
+    assert json.loads(result.attempts[0].explain_json or "{}")["passed"] is True
     assert result.model.calls == [None]
     assert list(result.job_workspace.glob("candidate-*")) == []
 
@@ -248,6 +316,30 @@ def test_regression_evidence_drives_retry_then_good_candidate(
         "integrity",
         "explain",
     }
+
+
+def test_fabricated_rationale_citation_blocks_verified(tmp_path: Path) -> None:
+    fabricated_claim = GOOD.rationale.behaviour_preservation[0].model_copy(
+        update={"proven_by": "tests/test_database.py::test_does_not_exist"}
+    )
+    proposal = GOOD.model_copy(
+        update={
+            "rationale": GOOD.rationale.model_copy(
+                update={"behaviour_preservation": (fabricated_claim,)}
+            )
+        }
+    )
+
+    result = _execute(tmp_path, (proposal,), max_attempts=1)
+
+    assert result.job.state == JobState.ESCALATED.value
+    assert result.attempts[0].failure_gate == "explain"
+    explanation = json.loads(result.attempts[0].explain_json or "{}")
+    assert explanation["passed"] is False
+    assert [item["code"] for item in explanation["violations"]] == [
+        "uncitable_test"
+    ]
+    assert all(event.type != "verified" for event in result.events)
 
 
 def test_protected_candidate_exhausts_budget_without_sandbox(

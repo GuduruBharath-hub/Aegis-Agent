@@ -65,6 +65,7 @@ class Attempt:
     regression_json: str | None = None
     post_scan_json: str | None = None
     integrity_json: str | None = None
+    explain_json: str | None = None
     pytest_ref: str | None = None
     bandit_ref: str | None = None
     harness_ref: str | None = None
@@ -153,7 +154,8 @@ class CandidateEvidence:
     security: EvidenceResult
     regression: EvidenceResult
     post_scan: EvidenceResult
-    explain: EvidenceResult
+    passed_test_ids: tuple[str, ...] = ()
+    evidence_refs: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

@@ -185,6 +185,7 @@ def test_attempt_round_trip(tmp_path: Path) -> None:
         regression_json='{"passed": false, "failures": ["test_partial"]}',
         post_scan_json='{"passed": true, "new_high": 0}',
         integrity_json='{"passed": true}',
+        explain_json='{"passed": true, "violations": []}',
         tree_hash_pre="hash_pre_123",
         tree_hash_post="hash_post_123",
         failure_gate="regression",
@@ -210,6 +211,7 @@ def test_attempt_round_trip(tmp_path: Path) -> None:
     assert retrieved.lines_added == 1
     assert retrieved.lines_removed == 1
     assert retrieved.diff_ref == diff_artifact.hash
+    assert retrieved.explain_json == '{"passed": true, "violations": []}'
     assert retrieved.failure_gate == "regression"
     assert retrieved.duration_ms == 5120
 
@@ -358,7 +360,7 @@ def test_migrations_are_idempotent(tmp_path: Path) -> None:
 
     try:
         applied1 = run_migrations(conn)
-        assert applied1 == [1]
+        assert applied1 == [1, 2]
 
         applied2 = run_migrations(conn)
         assert applied2 == []

@@ -28,6 +28,45 @@ FINDING = Finding(
 )
 
 
+def _proposal_payload(summary: str, new_content: str) -> dict[str, object]:
+    return {
+        "summary": summary,
+        "strategy": "parameterized_query",
+        "files": [
+            {"path": "app/database.py", "new_content": new_content}
+        ],
+        "injection_observed": False,
+        "rationale": {
+            "vulnerability_mechanism": "Caller input is concatenated into SQL syntax.",
+            "fix_mechanism": "The database driver binds input as data.",
+            "line_rationales": [
+                {
+                    "path": "app/database.py",
+                    "changed_lines": [1],
+                    "change_kind": "parameterize",
+                    "why": "Binding keeps caller data outside the executable query grammar.",
+                    "earns": "security.payload[0]",
+                }
+            ],
+            "behaviour_preservation": [
+                {
+                    "behaviour": "lookup remains callable",
+                    "preserved_by": "the function signature remains unchanged",
+                    "proven_by": "tests/test_database.py::test_lookup",
+                }
+            ],
+            "rejected_alternatives": [
+                {
+                    "approach": "strip quotes",
+                    "why_not": "it corrupts legitimate values",
+                }
+            ],
+            "residual_risk": ["Other queries require separate review."],
+            "reviewer_must_confirm": ["Confirm the driver binding syntax."],
+        },
+    }
+
+
 def test_feather_adapter_returns_schema_valid_patch_proposal() -> None:
     api_key = "feather-test-secret"
 
@@ -54,15 +93,10 @@ def test_feather_adapter_returns_schema_valid_patch_proposal() -> None:
                     {
                         "message": {
                             "content": json.dumps(
-                                {
-                                    "summary": "Use a bound SQL parameter",
-                                    "files": [
-                                        {
-                                            "path": "app/database.py",
-                                            "new_content": "def lookup():\n    pass\n",
-                                        }
-                                    ],
-                                }
+                                _proposal_payload(
+                                    "Use a bound SQL parameter",
+                                    "def lookup():\n    pass\n",
+                                )
                             )
                         }
                     }
@@ -109,15 +143,7 @@ def test_malformed_output_is_reported_then_repaired() -> None:
             repair = json.loads(body["messages"][-1]["content"])
             assert repair["repair"] == "Return only a corrected JSON object."
             content = json.dumps(
-                {
-                    "summary": "Use a bound parameter",
-                    "files": [
-                        {
-                            "path": "app/database.py",
-                            "new_content": "fixed = True\n",
-                        }
-                    ],
-                }
+                _proposal_payload("Use a bound parameter", "fixed = True\n")
             )
         return httpx.Response(
             200,
@@ -161,15 +187,7 @@ def test_provider_5xx_retries_with_bounded_backoff() -> None:
                     {
                         "message": {
                             "content": json.dumps(
-                                {
-                                    "summary": "Recovered",
-                                    "files": [
-                                        {
-                                            "path": "app/database.py",
-                                            "new_content": "fixed = True\n",
-                                        }
-                                    ],
-                                }
+                                _proposal_payload("Recovered", "fixed = True\n")
                             )
                         }
                     }

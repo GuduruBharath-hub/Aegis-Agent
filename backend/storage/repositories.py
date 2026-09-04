@@ -15,6 +15,7 @@ PRAGMA_FOREIGN_KEYS_CHECK = "PRAGMA foreign_keys;"
 PRAGMA_JOURNAL_MODE_CHECK = "PRAGMA journal_mode;"
 PRAGMA_USER_VERSION = "PRAGMA user_version;"
 PRAGMA_SET_USER_VERSION_1 = "PRAGMA user_version = 1;"
+PRAGMA_SET_USER_VERSION_2 = "PRAGMA user_version = 2;"
 
 MIGRATION_001_INITIAL_SCHEMA = """
 CREATE TABLE IF NOT EXISTS jobs (
@@ -121,8 +122,13 @@ CREATE TABLE IF NOT EXISTS benchmark_runs (
 );
 """
 
+MIGRATION_002_EXPLAIN_RESULT = """
+ALTER TABLE attempts ADD COLUMN explain_json TEXT;
+"""
+
 MIGRATIONS: tuple[tuple[int, str, str], ...] = (
     (1, MIGRATION_001_INITIAL_SCHEMA, PRAGMA_SET_USER_VERSION_1),
+    (2, MIGRATION_002_EXPLAIN_RESULT, PRAGMA_SET_USER_VERSION_2),
 )
 
 SQL_SELECT_SCHEMA_TABLES = """
@@ -341,10 +347,10 @@ INSERT INTO attempts (
     job_id, attempt_number, model, prompt_tokens, completion_tokens,
     summary, files_changed, lines_added, lines_removed,
     diff_ref, policy_json, security_json, regression_json,
-    post_scan_json, integrity_json, pytest_ref, bandit_ref,
+    post_scan_json, integrity_json, explain_json, pytest_ref, bandit_ref,
     harness_ref, tree_hash_pre, tree_hash_post, decision,
     failure_gate, failure_reason, started_at, completed_at, duration_ms
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 """
 
 SQL_SELECT_ATTEMPT = """
@@ -352,7 +358,7 @@ SELECT
     job_id, attempt_number, model, prompt_tokens, completion_tokens,
     summary, files_changed, lines_added, lines_removed,
     diff_ref, policy_json, security_json, regression_json,
-    post_scan_json, integrity_json, pytest_ref, bandit_ref,
+    post_scan_json, integrity_json, explain_json, pytest_ref, bandit_ref,
     harness_ref, tree_hash_pre, tree_hash_post, decision,
     failure_gate, failure_reason, started_at, completed_at, duration_ms
 FROM attempts
@@ -364,7 +370,7 @@ SELECT
     job_id, attempt_number, model, prompt_tokens, completion_tokens,
     summary, files_changed, lines_added, lines_removed,
     diff_ref, policy_json, security_json, regression_json,
-    post_scan_json, integrity_json, pytest_ref, bandit_ref,
+    post_scan_json, integrity_json, explain_json, pytest_ref, bandit_ref,
     harness_ref, tree_hash_pre, tree_hash_post, decision,
     failure_gate, failure_reason, started_at, completed_at, duration_ms
 FROM attempts
@@ -387,6 +393,7 @@ UPDATE attempts SET
     regression_json = ?,
     post_scan_json = ?,
     integrity_json = ?,
+    explain_json = ?,
     pytest_ref = ?,
     bandit_ref = ?,
     harness_ref = ?,
@@ -420,6 +427,7 @@ def _row_to_attempt(row: sqlite3.Row) -> Attempt:
         regression_json=row["regression_json"],
         post_scan_json=row["post_scan_json"],
         integrity_json=row["integrity_json"],
+        explain_json=row["explain_json"],
         pytest_ref=row["pytest_ref"],
         bandit_ref=row["bandit_ref"],
         harness_ref=row["harness_ref"],
@@ -458,6 +466,7 @@ class AttemptRepo:
                 attempt.regression_json,
                 attempt.post_scan_json,
                 attempt.integrity_json,
+                attempt.explain_json,
                 attempt.pytest_ref,
                 attempt.bandit_ref,
                 attempt.harness_ref,
@@ -501,6 +510,7 @@ class AttemptRepo:
                 attempt.regression_json,
                 attempt.post_scan_json,
                 attempt.integrity_json,
+                attempt.explain_json,
                 attempt.pytest_ref,
                 attempt.bandit_ref,
                 attempt.harness_ref,

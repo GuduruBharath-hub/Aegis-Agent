@@ -8,8 +8,12 @@ import tempfile
 
 from backend.agent.feather_client import FeatherPatchModel
 from backend.agent.llm_client import (
+    BehaviourPreservation,
+    LineRationale,
     PatchFile,
     PatchProposal,
+    PatchRationale,
+    RejectedAlternative,
     TechnicalErrorReporter,
 )
 from backend.core.config import FeatherSettings
@@ -100,8 +104,14 @@ class SqlRetryVerifier:
         failed = int(summary.get("failed", 0)) + int(summary.get("error", 0))
         regression_passed = failed == 0 and collected == 18
         failed_tests = []
+        passed_test_ids = []
         for test in pytest_report.get("tests", []):
-            if not isinstance(test, dict) or test.get("outcome") == "passed":
+            if not isinstance(test, dict):
+                continue
+            if test.get("outcome") == "passed":
+                node_id = test.get("nodeid")
+                if isinstance(node_id, str):
+                    passed_test_ids.append(node_id)
                 continue
             call = test.get("call", {})
             failed_tests.append(
@@ -156,9 +166,11 @@ class SqlRetryVerifier:
                     "new_high_findings": len(new_high),
                 },
             ),
-            explain=EvidenceResult(
-                True,
-                "prompt smoke defers rationale coverage to P3-5",
+            passed_test_ids=tuple(passed_test_ids),
+            evidence_refs=tuple(
+                f"security.payload[{index}]"
+                for index, payload in enumerate(payloads)
+                if isinstance(payload, dict)
             ),
         )
 
@@ -184,6 +196,7 @@ class RetryThenFeatherModel:
         if self.calls == 1:
             return PatchProposal(
                 summary="Bind the search term without preserving wildcards",
+                strategy="parameterized_query",
                 files=(
                     PatchFile(
                         path="app/database.py",
@@ -191,6 +204,44 @@ class RetryThenFeatherModel:
                             VULNERABLE_QUERY,
                             REGRESSION_QUERY,
                         ),
+                    ),
+                ),
+                injection_observed=False,
+                rationale=PatchRationale(
+                    vulnerability_mechanism=(
+                        "Caller input is concatenated directly into executable SQL."
+                    ),
+                    fix_mechanism=(
+                        "Driver parameter binding keeps input outside SQL syntax."
+                    ),
+                    line_rationales=(
+                        LineRationale(
+                            path="app/database.py",
+                            changed_lines=(77, 78),
+                            change_kind="parameterize",
+                            why=(
+                                "These lines separate caller-controlled data from the "
+                                "query grammar interpreted by SQLite."
+                            ),
+                            earns="security.payload[0]",
+                        ),
+                    ),
+                    behaviour_preservation=(
+                        BehaviourPreservation(
+                            behaviour="exact-name searching remains available",
+                            preserved_by="the original term is passed as the bound value",
+                            proven_by="tests/test_database.py::test_search_exact_match",
+                        ),
+                    ),
+                    rejected_alternatives=(
+                        RejectedAlternative(
+                            approach="escape quote characters",
+                            why_not="manual escaping is driver-specific and incomplete",
+                        ),
+                    ),
+                    residual_risk=("Other SQL call sites need separate verification.",),
+                    reviewer_must_confirm=(
+                        "Confirm partial-name matching remains preserved.",
                     ),
                 ),
             )

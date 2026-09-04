@@ -29,6 +29,7 @@ from backend.core.states import JobState
 from backend.core.workspace import WorkspaceManager
 from backend.storage.repositories import AttemptRepo, FindingRepo, JobRepo
 from backend.validator.pipeline import ValidatorPipeline
+from backend.verification.explain import ExplainResult, evaluate as evaluate_explanation
 from backend.verification.gate import Verdict, evaluate
 from backend.verification.integrity import IntegrityResult, compare, tree_hash
 
@@ -309,7 +310,14 @@ class Orchestrator:
                 delivery_hash = tree_hash(candidate)
                 integrity = compare(pre_run, post_run, delivery_hash)
                 await self._emit_gate(job, "integrity", integrity, attempt_number)
-                await self._emit_gate(job, "explain", evidence.explain, attempt_number)
+                explanation = evaluate_explanation(
+                    base,
+                    candidate,
+                    proposal.rationale,
+                    passed_test_ids=evidence.passed_test_ids,
+                    evidence_refs=evidence.evidence_refs,
+                )
+                await self._emit_gate(job, "explain", explanation, attempt_number)
 
                 verdict = evaluate(
                     policy=policy.passed,
@@ -317,7 +325,7 @@ class Orchestrator:
                     regression=evidence.regression.passed,
                     post_scan=evidence.post_scan.passed,
                     integrity=integrity.passed,
-                    explain=evidence.explain.passed,
+                    explain=explanation.passed,
                 )
                 self._record_verdict(
                     attempt,
@@ -325,6 +333,7 @@ class Orchestrator:
                     policy,
                     evidence,
                     integrity,
+                    explanation,
                     verdict,
                 )
 
@@ -363,6 +372,7 @@ class Orchestrator:
                     policy,
                     evidence,
                     integrity,
+                    explanation,
                     verdict,
                 )
                 job = await self._transition(job, JobState.RETRYING)
@@ -412,6 +422,7 @@ class Orchestrator:
         policy: PolicyResult,
         evidence: CandidateEvidence,
         integrity: IntegrityResult,
+        explanation: ExplainResult,
         verdict: Verdict,
     ) -> Attempt:
         recorded = replace(
@@ -425,6 +436,13 @@ class Orchestrator:
             regression_json=json.dumps(asdict(evidence.regression), sort_keys=True),
             post_scan_json=json.dumps(asdict(evidence.post_scan), sort_keys=True),
             integrity_json=json.dumps(asdict(integrity), sort_keys=True),
+            explain_json=json.dumps(
+                {
+                    **asdict(explanation),
+                    "rationale": proposal.rationale.model_dump(mode="json"),
+                },
+                sort_keys=True,
+            ),
             tree_hash_pre=integrity.pre_run,
             tree_hash_post=integrity.post_run,
             decision=verdict.decision,
@@ -457,6 +475,7 @@ class Orchestrator:
         policy: PolicyResult,
         evidence: CandidateEvidence,
         integrity: IntegrityResult,
+        explanation: ExplainResult,
         verdict: Verdict,
     ) -> FailureEvidence:
         results = {
@@ -478,9 +497,12 @@ class Orchestrator:
             ),
             "integrity": (integrity.passed, integrity.reason, {}),
             "explain": (
-                evidence.explain.passed,
-                evidence.explain.reason,
-                evidence.explain.detail,
+                explanation.passed,
+                explanation.reason,
+                {
+                    "violations": [asdict(item) for item in explanation.violations],
+                    "previous_rationale": proposal.rationale.model_dump(mode="json"),
+                },
             ),
         }
         passed = tuple(
@@ -541,7 +563,7 @@ class Orchestrator:
         self,
         job: Job,
         gate_name: str,
-        result: EvidenceResult | IntegrityResult,
+        result: EvidenceResult | IntegrityResult | ExplainResult,
         attempt: int,
     ) -> None:
         await self._emit(
