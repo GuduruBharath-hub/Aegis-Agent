@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Literal
 
 
 @dataclass(frozen=True, slots=True)
 class Verdict:
     verified: bool
+    decision: Literal["verified", "rejected"]
     failed_gates: tuple[str, ...]
     first_failure: str | None
     reason: str
@@ -37,6 +39,7 @@ def evaluate(
     )
     return Verdict(
         verified=not failed,
+        decision="rejected" if failed else "verified",
         failed_gates=failed,
         first_failure=first_failure,
         reason=reason,

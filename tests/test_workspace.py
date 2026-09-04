@@ -99,6 +99,30 @@ def test_existing_base_and_candidate_are_never_reused(tmp_path: Path) -> None:
         manager.create_candidate("job-2", 1)
 
 
+def test_apply_changes_normalizes_content_and_rejects_path_escape(
+    tmp_path: Path,
+) -> None:
+    repository, base_sha = _committed_repository(tmp_path)
+    manager = WorkspaceManager(tmp_path / ".workspaces")
+    base = manager.materialize(repository, base_sha, "job-apply")
+    base_hash = _content_hash(base / "app.py")
+
+    candidate = manager.apply_changes(
+        "job-apply",
+        1,
+        {"app.py": "candidate\r\ncontent\r"},
+    )
+
+    assert read_text(candidate / "app.py") == "candidate\ncontent\n"
+    assert _content_hash(base / "app.py") == base_hash
+
+    with pytest.raises(WorkspaceError, match="unsafe patch path"):
+        manager.apply_changes("job-apply", 2, {"../outside.py": "blocked"})
+
+    assert not (tmp_path / "outside.py").exists()
+    assert not (manager.root / "job-apply" / "candidate-2").exists()
+
+
 def test_cleanup_refuses_base_and_paths_outside_workspace(tmp_path: Path) -> None:
     manager = WorkspaceManager(tmp_path / ".workspaces")
     outside = tmp_path / "candidate-1"

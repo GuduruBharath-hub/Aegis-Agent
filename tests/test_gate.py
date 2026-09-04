@@ -48,6 +48,7 @@ def test_failed_gates_and_first_failure_follow_the_documented_order() -> None:
     )
 
     assert verdict.verified is False
+    assert verdict.decision == "rejected"
     assert verdict.failed_gates == ("regression", "policy", "integrity")
     assert verdict.first_failure == "regression"
     assert verdict.reason == "regression gate failed"
@@ -64,6 +65,7 @@ def test_success_reason_is_explicit() -> None:
     )
 
     assert verdict.verified is True
+    assert verdict.decision == "verified"
     assert verdict.failed_gates == ()
     assert verdict.first_failure is None
     assert verdict.reason == "all configured gates passed"

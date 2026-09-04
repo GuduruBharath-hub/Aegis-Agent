@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 import re
 import shutil
 import subprocess
-from typing import Literal
+from typing import Literal, Mapping
 
 
 _SAFE_JOB_ID = re.compile(r"^[A-Za-z0-9_.-]+$")
@@ -92,6 +92,37 @@ class WorkspaceManager:
         shutil.copytree(base, candidate, symlinks=True)
         return candidate
 
+    def apply_changes(
+        self,
+        job_id: str,
+        attempt_number: int,
+        changes: Mapping[str, str],
+    ) -> Path:
+        candidate = self.create_candidate(job_id, attempt_number)
+        try:
+            for untrusted_path, content in changes.items():
+                relative = self._safe_relative_path(untrusted_path)
+                lexical_target = candidate / Path(*relative.parts)
+                current = candidate
+                for part in relative.parts:
+                    current /= part
+                    if current.is_symlink():
+                        raise WorkspaceError(
+                            f"patch path resolves through a symbolic link: {untrusted_path}"
+                        )
+                target = lexical_target.resolve()
+                try:
+                    target.relative_to(candidate.resolve())
+                except ValueError as exc:
+                    raise WorkspaceError(
+                        f"patch path escapes candidate: {untrusted_path}"
+                    ) from exc
+                write_text(target, content)
+        except Exception:
+            self.cleanup_candidate(candidate)
+            raise
+        return candidate
+
     def cleanup_candidate(self, candidate: Path) -> None:
         resolved = candidate.resolve()
         try:
@@ -108,6 +139,19 @@ class WorkspaceManager:
         if job_id in {".", ".."} or _SAFE_JOB_ID.fullmatch(job_id) is None:
             raise ValueError(f"unsafe job id: {job_id!r}")
         return self.root / job_id
+
+    @staticmethod
+    def _safe_relative_path(untrusted_path: str) -> PurePosixPath:
+        windows_path = PureWindowsPath(untrusted_path)
+        portable = PurePosixPath(untrusted_path.replace("\\", "/"))
+        if (
+            portable.is_absolute()
+            or windows_path.is_absolute()
+            or windows_path.drive
+            or ".." in portable.parts
+        ):
+            raise WorkspaceError(f"unsafe patch path: {untrusted_path}")
+        return portable
 
     def _run_git(self, *args: str, cwd: Path | None = None) -> None:
         environment = {

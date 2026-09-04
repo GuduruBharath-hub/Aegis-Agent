@@ -139,3 +139,27 @@ class PolicyResult:
     @property
     def passed(self) -> bool:
         return not self.violations
+
+
+@dataclass(frozen=True, slots=True)
+class EvidenceResult:
+    passed: bool
+    reason: str
+
+
+@dataclass(frozen=True, slots=True)
+class CandidateEvidence:
+    security: EvidenceResult
+    regression: EvidenceResult
+    post_scan: EvidenceResult
+    explain: EvidenceResult
+
+
+@dataclass(frozen=True, slots=True)
+class FailureEvidence:
+    attempt: int
+    failed_gate: str
+    passed_gates: tuple[str, ...]
+    headline: str
+    detail: dict[str, object]
+    previous_files: dict[str, str]

@@ -98,7 +98,7 @@ The whole loop runs end to end with a **stub** brain. No LLM yet.
       **Done when:** a test asserts `config.sandbox_env()` has no key matching
       `TOKEN|KEY|SECRET|PASSWORD|CREDENTIAL` and no value equal to a set token.
 
-- [ ] **P2-10 · StubPatchModel + orchestrator.** Canned candidates: one good, one
+- [x] **P2-10 · StubPatchModel + orchestrator.** Canned candidates: one good, one
       regression-breaking, one protected-file, three consecutive bad. §04, §17
       **Done when:** `pytest tests/test_orchestrator.py` drives all four terminal
       states in seconds with no API key configured. **This is the P2 gate.**
