@@ -68,7 +68,7 @@ The whole loop runs end to end with a **stub** brain. No LLM yet.
       **Done when:** a subscriber attaching mid-run receives the full backlog
       followed by live events, with no gap and no duplicate.
 
-- [ ] **P2-4 · Workspace manager.** Immutable `base/`, disposable candidates,
+- [x] **P2-4 · Workspace manager.** Immutable `base/`, disposable candidates,
       LF-normalised `read_text`/`write_text`. §04
       **Done when:** a test writes a file, commits it via git, checks it out, and
       asserts the content hash is unchanged. **Must pass on Windows.**
