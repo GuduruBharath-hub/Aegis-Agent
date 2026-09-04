@@ -13,7 +13,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done
 
 Prove the vulnerability is real and detectable before writing any agent code.
 
-- [ ] **P1-1 · Settle the sandbox tier.** Start Docker Desktop, then run
+- [x] **P1-1 · Settle the sandbox tier.** Start Docker Desktop, then run
       `docker run --rm --network none python:3.11-slim python -c "print(1)"`.
       Record the outcome in `docs/DECISIONS.md` as Tier A or Tier B. §12
       **Done when:** `docs/DECISIONS.md` states the tier and the reason.
