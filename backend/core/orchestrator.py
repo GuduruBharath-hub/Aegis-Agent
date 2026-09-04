@@ -140,7 +140,10 @@ class Orchestrator:
                 )
             )
             job = await self._transition(job, JobState.GENERATING_PATCH)
-            proposal = await self.model.generate_patch(finding, failure_evidence)
+            proposal = await self.model.generate_patch(
+                finding,
+                failure_evidence=failure_evidence,
+            )
             await self._emit(
                 job,
                 "patch_generated",

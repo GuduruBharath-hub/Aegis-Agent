@@ -5,7 +5,41 @@ why, and what would have to change to revisit it.
 
 ## Open
 
-- **Feather API shape (P3-1)** — answer the six questions in plan.md §11.
+- No open P3-1 decisions. Live access was verified with
+  `python -m scripts.verify_feather` on 2026-09-04.
+
+## 2026-09-04 — Featherless Kimi K3 adapter contract (P3-1)
+
+- **Structured output:** Use `response_format={"type":"json_object"}` and
+  validate the returned content as `PatchProposal`. Featherless documents
+  native tool calling only for Kimi K2 Instruct and Qwen 3, so K3 tool calling
+  is not treated as a reliable contract yet. The adapter does not execute any
+  model-requested tool.
+- **Output budget:** Request 8,000 completion tokens. Featherless's K3 launch
+  page says the current serving configuration has a 32K context, while its
+  compatibility catalog advertises a larger architecture limit; `/v1/plan`
+  can impose a lower account limit. Whole-file transport remains viable for
+  the benchmark-sized files, but the live smoke test must confirm acceptance.
+- **Response mode:** Use one non-streamed response. A patch event is emitted
+  only after the complete response has passed schema validation.
+- **Rate limits:** Keep `AEGIS_LLM_CONCURRENCY=1`. Kimi-class requests consume
+  four concurrent units and excess capacity is rejected with HTTP 429.
+- **Hosting:** Kimi K3 is hosted by Featherless at
+  `https://api.featherless.ai/v1`; repository content therefore still requires
+  the planned redaction step before real jobs.
+- **Sampling:** Send temperature `0` (documented as greedy sampling) and seed
+  `0`. Published benchmark results still require repeat runs because backend
+  determinism is not guaranteed by the documentation.
+- **Model ID:** `moonshotai/Kimi-K3`.
+- **Live verification:** The configured Kimi K3 endpoint returned a
+  schema-valid `PatchProposal` containing one complete Python file and a bound
+  SQL parameter. No repair pass was needed.
+- **Sources:** [Kimi K3 launch and model ID](https://featherless.ai/blog/kimi-k3-is-live-on-featherless),
+  [chat completions](https://featherless.ai/docs/completions),
+  [tool calling](https://featherless.ai/docs/tool-calling),
+  [model compatibility](https://featherless.ai/docs/models-model-compatibility),
+  [plan limits](https://featherless.ai/docs/api-reference-plan), and
+  [concurrency limits](https://featherless.ai/docs/concurrency-limits).
 
 ## 2026-09-04 — Sandbox tier (P1-1)
 

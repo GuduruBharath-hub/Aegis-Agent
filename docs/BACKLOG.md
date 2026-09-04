@@ -110,7 +110,7 @@ The whole loop runs end to end with a **stub** brain. No LLM yet.
 
 ## P3 — Connect the brain (Feather AI)
 
-- [ ] **P3-1 · Feather adapter.** `feather_client.py` implementing `PatchModel`.
+- [x] **P3-1 · Feather adapter.** `feather_client.py` implementing `PatchModel`.
       Walk the six-question checklist in §11 against Feather's docs first and
       record the answers in `docs/DECISIONS.md`.
       **Done when:** a live call returns a schema-valid `PatchProposal`.

@@ -34,6 +34,8 @@ class PatchModel(Protocol):
     async def generate_patch(
         self,
         finding: Finding,
+        context: str = "",
+        policy_summary: str = "",
         failure_evidence: FailureEvidence | None = None,
     ) -> PatchProposal: ...
 
@@ -48,9 +50,11 @@ class StubPatchModel:
     async def generate_patch(
         self,
         finding: Finding,
+        context: str = "",
+        policy_summary: str = "",
         failure_evidence: FailureEvidence | None = None,
     ) -> PatchProposal:
-        del finding
+        del finding, context, policy_summary
         index = len(self.calls)
         self.calls.append(failure_evidence)
         if index >= len(self._proposals):
