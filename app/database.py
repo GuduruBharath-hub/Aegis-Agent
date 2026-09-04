@@ -74,9 +74,8 @@ def search_users(
     active_connection = connection or create_database()
     try:
         rows = active_connection.execute(
-            "SELECT id, name, email FROM users WHERE name LIKE '%"
-            + term
-            + "%' ORDER BY id"
+            "SELECT id, name, email FROM users WHERE name LIKE ? ORDER BY id",
+            (f"%{term}%",),
         ).fetchall()
         return [_to_user(row) for row in rows]
     finally:
