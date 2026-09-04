@@ -36,7 +36,13 @@ class LineRationale(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     path: str = Field(min_length=1)
-    changed_lines: tuple[int, ...] = Field(min_length=1)
+    changed_lines: tuple[int, ...] = Field(
+        min_length=1,
+        description=(
+            "One-based line numbers in the COMPLETE candidate file. Include only "
+            "added or replaced candidate-side lines, never deleted or context lines."
+        ),
+    )
     change_kind: Literal[
         "parameterize",
         "escape",
@@ -47,7 +53,14 @@ class LineRationale(BaseModel):
         "other",
     ]
     why: str = Field(min_length=1)
-    earns: str = Field(min_length=1)
+    earns: str = Field(
+        min_length=1,
+        pattern=r"^security\.payload\[\d+\]$",
+        description=(
+            "Exactly one security result reference such as security.payload[0]; "
+            "never prose or a security claim."
+        ),
+    )
 
     @model_validator(mode="after")
     def lines_are_positive_and_unique(self) -> LineRationale:
@@ -63,7 +76,14 @@ class BehaviourPreservation(BaseModel):
 
     behaviour: str = Field(min_length=1)
     preserved_by: str = Field(min_length=1)
-    proven_by: str = Field(min_length=1)
+    proven_by: str = Field(
+        min_length=1,
+        pattern=r"^[^\s,]+::[^\s,]+$",
+        description=(
+            "Exactly one pytest node id from the supplied repository, for example "
+            "tests/test_users.py::test_search_partial_match. Never join citations."
+        ),
+    )
 
 
 class RejectedAlternative(BaseModel):

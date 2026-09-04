@@ -61,6 +61,15 @@ POLICY
 
 OUTPUT SCHEMA
 {schema_text}
+
+RATIONALE CITATION RULES
+- changed_lines are one-based line numbers in your complete NEW file contents. List
+  only candidate-side added or replaced lines, never deleted or unchanged lines.
+- earns is one exact result identifier in the form security.payload[N]. Use
+  security.payload[0] when one rationale group accounts for the security fix.
+- proven_by is one exact pytest node id visible in the repository context. Create a
+  separate behaviour_preservation item for each cited test; never join test ids and
+  never put prose in proven_by.
 """
     if failure_evidence is None:
         return common + "\nTASK\nPropose the smallest valid patch from the original source.\n"

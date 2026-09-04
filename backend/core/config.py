@@ -7,12 +7,15 @@ from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+_ENV_CONFIG = SettingsConfigDict(
+    env_file=".env",
+    env_file_encoding="utf-8",
+    extra="ignore",
+)
+
+
 class FeatherSettings(BaseSettings):
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="ignore",
-    )
+    model_config = _ENV_CONFIG
 
     api_key: SecretStr = Field(alias="FEATHER_API_KEY")
     base_url: str = Field(
@@ -30,6 +33,21 @@ class FeatherSettings(BaseSettings):
         le=5,
         alias="AEGIS_LLM_TRANSPORT_RETRIES",
     )
+
+
+class RuntimeSettings(BaseSettings):
+    model_config = _ENV_CONFIG
+
+    db_path: Path = Field(default=Path("aegis.db"), alias="AEGIS_DB_PATH")
+    workspace_root: Path = Field(
+        default=Path(".workspaces"),
+        alias="AEGIS_WORKSPACE_ROOT",
+    )
+    policy_path: Path = Field(
+        default=Path("policies/security_policy.json"),
+        alias="AEGIS_POLICY_PATH",
+    )
+    max_attempts: int = Field(default=3, ge=1, le=10, alias="AEGIS_MAX_ATTEMPTS")
 
 
 def sandbox_env(home: Path, *, executable_path: str = "") -> dict[str, str]:

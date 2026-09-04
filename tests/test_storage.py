@@ -5,7 +5,7 @@ import sqlite3
 
 import pytest
 
-from backend.core.models import Artifact, Attempt, Event, Job
+from backend.core.models import Artifact, Attempt, Event, Finding, Job
 from backend.core.workspace import read_text
 from backend.storage.database import Database
 from backend.storage.repositories import (
@@ -360,12 +360,53 @@ def test_migrations_are_idempotent(tmp_path: Path) -> None:
 
     try:
         applied1 = run_migrations(conn)
-        assert applied1 == [1, 2]
+        assert applied1 == [1, 2, 3]
 
         applied2 = run_migrations(conn)
         assert applied2 == []
     finally:
         conn.close()
+
+
+def test_stable_finding_id_can_repeat_across_jobs(tmp_path: Path) -> None:
+    database = Database(tmp_path / "finding-keys.db")
+    connection = database.init_db()
+    try:
+        jobs = database.jobs(connection)
+        findings = database.findings(connection)
+        for job_id in ("job-one", "job-two"):
+            jobs.create(
+                Job(
+                    id=job_id,
+                    repository="same-fixture",
+                    repository_url="same-fixture",
+                    base_sha="HEAD",
+                    mode="demo",
+                    max_attempts=1,
+                )
+            )
+            findings.create(
+                Finding(
+                    id="AEGIS-STABLE-ID",
+                    scanner="aegis-ast",
+                    rule_id="AEGIS-SQL-001",
+                    category="SQL_INJECTION",
+                    cwe="CWE-89",
+                    severity="HIGH",
+                    confidence="HIGH",
+                    file_path="app/database.py",
+                    line_start=1,
+                    line_end=1,
+                    symbol="search",
+                    message="unsafe query",
+                ),
+                job_id,
+            )
+
+        assert len(findings.list_for_job("job-one")) == 1
+        assert len(findings.list_for_job("job-two")) == 1
+    finally:
+        connection.close()
 
 
 def test_no_sql_outside_repositories() -> None:

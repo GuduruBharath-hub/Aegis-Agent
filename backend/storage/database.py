@@ -27,7 +27,9 @@ class Database:
 
     def connect(self) -> sqlite3.Connection:
         """Create and configure a SQLite connection with WAL mode and foreign keys enabled."""
-        conn = sqlite3.connect(self.db_path)
+        # FastAPI's test/server boundaries may create the app and serve it on
+        # different threads; repository writes remain serialized by the runtime.
+        conn = sqlite3.connect(self.db_path, check_same_thread=False)
         conn.row_factory = sqlite3.Row
         apply_pragmas(conn)
         return conn

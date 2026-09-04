@@ -16,6 +16,7 @@ PRAGMA_JOURNAL_MODE_CHECK = "PRAGMA journal_mode;"
 PRAGMA_USER_VERSION = "PRAGMA user_version;"
 PRAGMA_SET_USER_VERSION_1 = "PRAGMA user_version = 1;"
 PRAGMA_SET_USER_VERSION_2 = "PRAGMA user_version = 2;"
+PRAGMA_SET_USER_VERSION_3 = "PRAGMA user_version = 3;"
 
 MIGRATION_001_INITIAL_SCHEMA = """
 CREATE TABLE IF NOT EXISTS jobs (
@@ -126,9 +127,42 @@ MIGRATION_002_EXPLAIN_RESULT = """
 ALTER TABLE attempts ADD COLUMN explain_json TEXT;
 """
 
+MIGRATION_003_FINDING_JOB_KEY = """
+CREATE TABLE findings_v3 (
+    id          TEXT NOT NULL,
+    job_id      TEXT NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+    scanner     TEXT,
+    rule_id     TEXT,
+    category    TEXT,
+    cwe         TEXT,
+    severity    TEXT,
+    confidence  TEXT,
+    file_path   TEXT,
+    line_start  INTEGER,
+    line_end    INTEGER,
+    symbol      TEXT,
+    message     TEXT,
+    raw_ref     TEXT REFERENCES artifacts(hash),
+    reproduced  INTEGER,
+    repro_ref   TEXT REFERENCES artifacts(hash),
+    PRIMARY KEY (job_id, id)
+);
+INSERT INTO findings_v3 (
+    id, job_id, scanner, rule_id, category, cwe, severity, confidence,
+    file_path, line_start, line_end, symbol, message, raw_ref, reproduced, repro_ref
+)
+SELECT
+    id, job_id, scanner, rule_id, category, cwe, severity, confidence,
+    file_path, line_start, line_end, symbol, message, raw_ref, reproduced, repro_ref
+FROM findings;
+DROP TABLE findings;
+ALTER TABLE findings_v3 RENAME TO findings;
+"""
+
 MIGRATIONS: tuple[tuple[int, str, str], ...] = (
     (1, MIGRATION_001_INITIAL_SCHEMA, PRAGMA_SET_USER_VERSION_1),
     (2, MIGRATION_002_EXPLAIN_RESULT, PRAGMA_SET_USER_VERSION_2),
+    (3, MIGRATION_003_FINDING_JOB_KEY, PRAGMA_SET_USER_VERSION_3),
 )
 
 SQL_SELECT_SCHEMA_TABLES = """

@@ -133,7 +133,7 @@ The whole loop runs end to end with a **stub** brain. No LLM yet.
       **Done when:** the six coverage checks are tested, including a **fabricated
       test citation**, which must fail the gate.
 
-- [ ] **P3-6 · API routes.** jobs, events, stream (SSE with `Last-Event-ID`),
+- [x] **P3-6 · API routes.** jobs, events, stream (SSE with `Last-Event-ID`),
       attempts, demo. §05
       **Done when:** `curl -N /api/demo/sql_retry` streams a complete real run to
       a terminal and ends in `verified`. **This is the P3 gate.**

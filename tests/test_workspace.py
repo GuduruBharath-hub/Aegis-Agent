@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -12,6 +13,7 @@ from backend.core.workspace import (
     WorkspaceError,
     WorkspaceExistsError,
     WorkspaceManager,
+    _remove_readonly,
     read_text,
     write_text,
 )
@@ -134,3 +136,13 @@ def test_cleanup_refuses_base_and_paths_outside_workspace(tmp_path: Path) -> Non
         manager.cleanup_candidate(manager.root / "job-1" / "base")
 
     assert outside.is_dir()
+
+
+def test_readonly_cleanup_recovery_removes_the_blocked_path(tmp_path: Path) -> None:
+    blocked = tmp_path / "readonly.txt"
+    write_text(blocked, "temporary\n")
+    blocked.chmod(0o444)
+
+    _remove_readonly(os.unlink, str(blocked), None)
+
+    assert not blocked.exists()

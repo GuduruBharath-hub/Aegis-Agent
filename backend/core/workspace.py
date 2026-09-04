@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 import os
 from pathlib import Path, PurePosixPath, PureWindowsPath
 import re
 import shutil
+import stat
 import subprocess
 from typing import Literal, Mapping
 
@@ -133,7 +135,7 @@ class WorkspaceManager:
         if len(relative.parts) != 2 or not relative.name.startswith("candidate-"):
             raise WorkspaceError("refusing to remove a non-candidate workspace")
         if resolved.exists():
-            shutil.rmtree(resolved)
+            shutil.rmtree(resolved, onerror=_remove_readonly)
 
     def _job_root(self, job_id: str) -> Path:
         if job_id in {".", ".."} or _SAFE_JOB_ID.fullmatch(job_id) is None:
@@ -175,3 +177,13 @@ class WorkspaceManager:
         if result.returncode != 0:
             detail = result.stderr.strip() or result.stdout.strip()
             raise WorkspaceError(f"git command failed: {detail}")
+
+
+def _remove_readonly(
+    function: Callable[[str], object],
+    path: str,
+    error: object,
+) -> None:
+    del error
+    os.chmod(path, stat.S_IWRITE | stat.S_IREAD)
+    function(path)
