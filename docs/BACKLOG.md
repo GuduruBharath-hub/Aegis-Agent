@@ -83,7 +83,7 @@ The whole loop runs end to end with a **stub** brain. No LLM yet.
       **Done when:** an exhaustive test over all 64 boolean combinations asserts
       `verified` is true for exactly one.
 
-- [ ] **P2-7 · Integrity.** `tree_hash` with the exclusion set and LF
+- [x] **P2-7 · Integrity.** `tree_hash` with the exclusion set and LF
       normalisation; three-point comparison. §13
       **Done when:** H1/H2/H3 comparison is unit-tested, including a deliberate
       mismatch producing `FAILED` and no delivery.
