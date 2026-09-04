@@ -126,11 +126,17 @@ def test_post_demo_returns_job_ref_and_attempt_detail(tmp_path: Path) -> None:
         body = started.json()
         job_id = body["job_id"]
         runtime.attempts.create(
+            # The API resolves content-addressed references instead of exposing
+            # workspace paths that disappear after candidate cleanup.
             Attempt(
                 job_id=job_id,
                 attempt_number=1,
                 decision="verified",
                 model="moonshotai/Kimi-K3",
+                diff_ref=runtime.artifacts.put(
+                    "unified_diff",
+                    "--- a/app.py\n+++ b/app.py\n@@ -1 +1 @@\n-old\n+new\n",
+                ).hash,
                 explain_json=json.dumps(
                     {
                         "passed": True,
@@ -146,6 +152,7 @@ def test_post_demo_returns_job_ref_and_attempt_detail(tmp_path: Path) -> None:
     assert body["stream_url"] == f"/api/jobs/{job_id}/stream"
     assert detail.status_code == 200
     assert detail.json()["gates"]["explain"]["passed"] is True
+    assert detail.json()["diff"].endswith("-old\n+new\n")
     assert detail.json()["rationale"]["reviewer_must_confirm"] == ["review"]
     runtime.connection.close()
 

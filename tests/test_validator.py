@@ -8,6 +8,7 @@ import pytest
 
 from backend.core.workspace import write_text
 from backend.validator.pipeline import ValidatorPipeline, ValidatorPolicy
+from backend.validator.diff_policy import render_unified_diff
 from backend.validator.protected_paths import PathEscapeError, normalize_relative_path
 
 
@@ -217,3 +218,13 @@ def test_pipeline_compares_trees_not_a_claimed_file_list(tmp_path: Path) -> None
         "new_file",
         "protected_path",
     }
+
+
+def test_review_diff_uses_the_same_tree_comparison(tmp_path: Path) -> None:
+    base, candidate = _trees(tmp_path, {"app.py": "value = 1\n"})
+    write_text(candidate / "app.py", "value = 2\n")
+
+    rendered = render_unified_diff(base, candidate)
+
+    assert "--- a/app.py\n+++ b/app.py\n" in rendered
+    assert "-value = 1\n+value = 2\n" in rendered

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from difflib import SequenceMatcher
+from difflib import SequenceMatcher, unified_diff
 from pathlib import Path
 from typing import Literal
 
@@ -85,6 +85,39 @@ def diff_stats(changes: tuple[FileChange, ...]) -> DiffStats:
         lines_added=sum(change.lines_added for change in changes),
         lines_removed=sum(change.lines_removed for change in changes),
     )
+
+
+def render_unified_diff(base: Path, candidate: Path) -> str:
+    """Render the validator's actual tree comparison for durable review."""
+    sections: list[str] = []
+    for change in compare_trees(base, candidate):
+        if change.symbolic_link:
+            sections.append(f"Symbolic link {change.path} changed\n")
+            continue
+        if change.path_escape:
+            sections.append(f"Unsafe path {change.path} changed\n")
+            continue
+
+        before = None if change.kind == "added" else base / change.path
+        after = None if change.kind == "deleted" else candidate / change.path
+        old_content, old_binary = _content(before)
+        new_content, new_binary = _content(after)
+        if old_binary or new_binary:
+            sections.append(
+                f"Binary files a/{change.path} and b/{change.path} differ\n"
+            )
+            continue
+        from_file = "/dev/null" if before is None else f"a/{change.path}"
+        to_file = "/dev/null" if after is None else f"b/{change.path}"
+        lines = unified_diff(
+            old_content.splitlines(),
+            new_content.splitlines(),
+            fromfile=from_file,
+            tofile=to_file,
+            lineterm="",
+        )
+        sections.extend(f"{line}\n" for line in lines)
+    return "".join(sections)
 
 
 def find_diff_violations(

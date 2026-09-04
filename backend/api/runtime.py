@@ -78,6 +78,7 @@ class ApiRuntime:
         orchestrator = Orchestrator(
             jobs=jobs,
             attempts=attempts,
+            artifacts=artifacts,
             findings=findings,
             events=event_bus,
             workspace=workspace,

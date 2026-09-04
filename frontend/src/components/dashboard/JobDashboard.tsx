@@ -4,8 +4,14 @@ import { useCallback, useEffect, useState } from "react";
 
 import { JobHeader } from "@/components/dashboard/JobHeader";
 import { PipelineRail } from "@/components/dashboard/PipelineRail";
+import { AttemptWorkbench } from "@/components/dashboard/AttemptWorkbench";
 import { useJobStream } from "@/hooks/useJobStream";
-import { getJob, type Job } from "@/lib/api";
+import {
+  getJob,
+  listJobAttempts,
+  type AttemptSummary,
+  type Job,
+} from "@/lib/api";
 
 interface JobDashboardProps {
   jobId: string;
@@ -13,11 +19,17 @@ interface JobDashboardProps {
 
 export function JobDashboard({ jobId }: JobDashboardProps) {
   const [job, setJob] = useState<Job | null>(null);
+  const [attempts, setAttempts] = useState<AttemptSummary[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     try {
-      setJob(await getJob(jobId));
+      const [nextJob, nextAttempts] = await Promise.all([
+        getJob(jobId),
+        listJobAttempts(jobId),
+      ]);
+      setJob(nextJob);
+      setAttempts(nextAttempts);
       setError(null);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to load job");
@@ -28,9 +40,13 @@ export function JobDashboard({ jobId }: JobDashboardProps) {
 
   useEffect(() => {
     const controller = new AbortController();
-    void getJob(jobId, controller.signal).then(
-      (initialJob) => {
+    void Promise.all([
+      getJob(jobId, controller.signal),
+      listJobAttempts(jobId, controller.signal),
+    ]).then(
+      ([initialJob, initialAttempts]) => {
         setJob(initialJob);
+        setAttempts(initialAttempts);
         setError(null);
       },
       (cause: unknown) => {
@@ -57,6 +73,11 @@ export function JobDashboard({ jobId }: JobDashboardProps) {
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
       <JobHeader job={job} connection={stream.status} />
       <PipelineRail job={job} events={stream.events} />
+      <AttemptWorkbench
+        jobId={job.id}
+        attempts={attempts}
+        events={stream.events}
+      />
       {stream.error ? (
         <div className="mx-auto mt-4 max-w-[1500px] px-5 md:px-8">
           <p className="border border-amber-500/30 bg-amber-500/10 px-4 py-3 font-mono text-xs text-amber-200">

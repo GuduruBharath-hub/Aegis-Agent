@@ -284,6 +284,7 @@ async def main() -> None:
             orchestrator = Orchestrator(
                 jobs=jobs,
                 attempts=attempts,
+                artifacts=database.artifacts(connection),
                 findings=database.findings(connection),
                 events=EventBus(events),
                 workspace=WorkspaceManager(root / ".workspaces"),

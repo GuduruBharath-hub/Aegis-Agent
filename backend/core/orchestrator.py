@@ -27,7 +27,13 @@ from backend.core.models import (
 )
 from backend.core.states import JobState
 from backend.core.workspace import WorkspaceManager
-from backend.storage.repositories import AttemptRepo, FindingRepo, JobRepo
+from backend.storage.repositories import (
+    ArtifactRepo,
+    AttemptRepo,
+    FindingRepo,
+    JobRepo,
+)
+from backend.validator.diff_policy import render_unified_diff
 from backend.validator.pipeline import ValidatorPipeline
 from backend.verification.explain import ExplainResult, evaluate as evaluate_explanation
 from backend.verification.gate import Verdict, evaluate
@@ -55,6 +61,7 @@ class Orchestrator:
         *,
         jobs: JobRepo,
         attempts: AttemptRepo,
+        artifacts: ArtifactRepo,
         findings: FindingRepo,
         events: EventBus,
         workspace: WorkspaceManager,
@@ -66,6 +73,7 @@ class Orchestrator:
     ) -> None:
         self.jobs = jobs
         self.attempts = attempts
+        self.artifacts = artifacts
         self.findings = findings
         self.events = events
         self.workspace = workspace
@@ -234,8 +242,17 @@ class Orchestrator:
             )
             try:
                 policy = self.validator.run(base, candidate)
+                diff_ref = self.artifacts.put(
+                    "unified_diff",
+                    render_unified_diff(base, candidate),
+                ).hash
                 if not policy.passed:
-                    attempt = self._record_policy_rejection(attempt, proposal, policy)
+                    attempt = self._record_policy_rejection(
+                        attempt,
+                        proposal,
+                        policy,
+                        diff_ref,
+                    )
                     await self._emit(
                         job,
                         "policy_failed",
@@ -335,6 +352,7 @@ class Orchestrator:
                     integrity,
                     explanation,
                     verdict,
+                    diff_ref,
                 )
 
                 if verdict.verified:
@@ -400,6 +418,7 @@ class Orchestrator:
         attempt: Attempt,
         proposal: PatchProposal,
         policy: PolicyResult,
+        diff_ref: str,
     ) -> Attempt:
         recorded = replace(
             attempt,
@@ -407,6 +426,7 @@ class Orchestrator:
             files_changed=policy.stats.files_changed,
             lines_added=policy.stats.lines_added,
             lines_removed=policy.stats.lines_removed,
+            diff_ref=diff_ref,
             policy_json=json.dumps(asdict(policy), sort_keys=True),
             decision="rejected",
             failure_gate="policy",
@@ -424,6 +444,7 @@ class Orchestrator:
         integrity: IntegrityResult,
         explanation: ExplainResult,
         verdict: Verdict,
+        diff_ref: str,
     ) -> Attempt:
         recorded = replace(
             attempt,
@@ -431,6 +452,7 @@ class Orchestrator:
             files_changed=policy.stats.files_changed,
             lines_added=policy.stats.lines_added,
             lines_removed=policy.stats.lines_removed,
+            diff_ref=diff_ref,
             policy_json=json.dumps(asdict(policy), sort_keys=True),
             security_json=json.dumps(asdict(evidence.security), sort_keys=True),
             regression_json=json.dumps(asdict(evidence.regression), sort_keys=True),

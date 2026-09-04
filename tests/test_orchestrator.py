@@ -232,6 +232,7 @@ def _execute(
     try:
         jobs = database.jobs(connection)
         attempts = database.attempts(connection)
+        artifacts = database.artifacts(connection)
         event_repo = database.events(connection)
         job = jobs.create(
             Job(
@@ -250,6 +251,7 @@ def _execute(
         orchestrator = Orchestrator(
             jobs=jobs,
             attempts=attempts,
+            artifacts=artifacts,
             findings=database.findings(connection),
             events=EventBus(event_repo),
             workspace=WorkspaceManager(workspace_root),
@@ -288,6 +290,14 @@ def test_good_stub_candidate_completes_without_api_key(
     assert result.job.final_decision == "verified"
     assert len(result.attempts) == 1
     assert result.attempts[0].decision == "verified"
+    assert result.attempts[0].diff_ref is not None
+    database = Database(tmp_path / "aegis.db")
+    connection = database.connect()
+    artifact = database.artifacts(connection).get(result.attempts[0].diff_ref)
+    connection.close()
+    assert artifact is not None
+    assert "-            + term" in artifact.content
+    assert "+            (f\"%{term}%\",)," in artifact.content
     assert json.loads(result.attempts[0].explain_json or "{}")["passed"] is True
     assert result.model.calls == [None]
     assert list(result.job_workspace.glob("candidate-*")) == []
@@ -350,6 +360,7 @@ def test_protected_candidate_exhausts_budget_without_sandbox(
     assert result.job.state == JobState.POLICY_REJECTED.value
     assert result.job.final_decision == "policy_rejected"
     assert result.attempts[0].failure_gate == "policy"
+    assert result.attempts[0].diff_ref is not None
     assert result.verifier.verify_calls == 0
     assert "policy_failed" in [event.type for event in result.events]
     assert "sandbox_started" not in [event.type for event in result.events]
