@@ -9,6 +9,7 @@ from backend.agent.llm_client import (
     RejectedAlternative,
 )
 from backend.core.workspace import write_text
+from backend.verification import explain
 from backend.verification.explain import changed_lines, evaluate
 
 
@@ -184,3 +185,44 @@ def test_empty_reviewer_checklist_fails(tmp_path: Path) -> None:
     assert "empty_reviewer_checklist" in {
         item.code for item in result.violations
     }
+
+
+def test_parametrised_test_may_be_cited_by_its_function_id() -> None:
+    """Pytest reports `f[1-Alice]`; a model reading the source sees only `f`.
+
+    Demanding the instance id rejects a correct citation of a real, passing
+    test. A false rejection damages this project's claim exactly as much as a
+    false verification.
+    """
+    citable = explain._citable_test_ids(
+        (
+            "tests/test_database.py::test_get_user[1-Alice]",
+            "tests/test_database.py::test_get_user[2-Bob]",
+            "tests/test_database.py::test_plain",
+        ),
+        (),
+    )
+
+    assert "tests/test_database.py::test_get_user" in citable
+    assert "tests/test_database.py::test_get_user[1-Alice]" in citable
+    assert "tests/test_database.py::test_plain" in citable
+
+
+def test_function_id_is_not_citable_when_any_case_failed() -> None:
+    """If one parametrised case failed, the function as a whole did not hold."""
+    citable = explain._citable_test_ids(
+        ("tests/test_database.py::test_get_user[1-Alice]",),
+        ("tests/test_database.py::test_get_user[2-Bob]",),
+    )
+
+    assert "tests/test_database.py::test_get_user" not in citable
+    assert "tests/test_database.py::test_get_user[1-Alice]" in citable
+
+
+def test_fabricated_citation_is_still_rejected() -> None:
+    """The relaxation must not weaken the check that matters most."""
+    citable = explain._citable_test_ids(
+        ("tests/test_database.py::test_get_user[1-Alice]",), ()
+    )
+
+    assert "tests/test_database.py::test_invented_by_the_model" not in citable

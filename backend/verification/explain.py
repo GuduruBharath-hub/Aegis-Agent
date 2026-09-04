@@ -29,6 +29,38 @@ class ExplainResult:
     reason: str
 
 
+def _base_id(node_id: str) -> str:
+    """Strip pytest's parametrisation suffix: `t.py::f[1-Alice]` -> `t.py::f`."""
+    head, sep, _ = node_id.partition("[")
+    return head if sep else node_id
+
+
+def _citable_test_ids(
+    passed_test_ids: tuple[str, ...],
+    failed_test_ids: tuple[str, ...],
+) -> frozenset[str]:
+    """Node ids a rationale may legitimately cite as proof.
+
+    Pytest reports a parametrised test once per case
+    (`...::test_get_user[1-Alice]`), but a model reading the source sees only
+    the function. Requiring the exact instance id would reject correct
+    citations of real, passing tests — a false rejection, which is as damaging
+    to this project's claim as a false verification.
+
+    So a bare function id is citable too, but only when *every* instance of it
+    passed. If any case failed, the function as a whole did not hold and must
+    not be usable as proof.
+    """
+    citable = set(passed_test_ids)
+    failed_bases = {_base_id(node_id) for node_id in failed_test_ids}
+    citable.update(
+        _base_id(node_id)
+        for node_id in passed_test_ids
+        if _base_id(node_id) not in failed_bases
+    )
+    return frozenset(citable)
+
+
 def evaluate(
     base: Path,
     candidate: Path,
@@ -36,6 +68,7 @@ def evaluate(
     *,
     passed_test_ids: tuple[str, ...],
     evidence_refs: tuple[str, ...],
+    failed_test_ids: tuple[str, ...] = (),
 ) -> ExplainResult:
     changed = changed_lines(base, candidate)
     covered = {
@@ -55,7 +88,7 @@ def evaluate(
             ExplainViolation("rationale_for_unchanged_line", path, lines)
         )
 
-    passed_tests = set(passed_test_ids)
+    passed_tests = _citable_test_ids(passed_test_ids, failed_test_ids)
     for claim in rationale.behaviour_preservation:
         if claim.proven_by not in passed_tests:
             violations.append(

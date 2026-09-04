@@ -155,6 +155,7 @@ class CandidateEvidence:
     regression: EvidenceResult
     post_scan: EvidenceResult
     passed_test_ids: tuple[str, ...] = ()
+    failed_test_ids: tuple[str, ...] = ()
     evidence_refs: tuple[str, ...] = ()
     raw_pytest: str | None = None
     raw_bandit: str | None = None

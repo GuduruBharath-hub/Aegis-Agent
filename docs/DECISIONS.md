@@ -130,3 +130,22 @@ time, 100s ceiling, no transport retries:
 - **One key is not redundancy:** all three slots share a Featherless account
   and quota. This chain survives a bad or slow *model*; it does not survive an
   exhausted *key*. For that, one slot must point at a different vendor.
+
+## 2026-09-05 - Explainability gate: citations match at function level
+
+- **Symptom:** `sql_basic`, the easiest benchmark case, escalated after three
+  attempts. Five gates passed every time; only `explain` failed, with
+  `uncitable_test` against tests that demonstrably exist and passed.
+- **Cause:** the fixture's tests are parametrised. Pytest reports
+  `tests/test_database.py::test_get_user[1-Alice Johnson]`, while a model
+  reading the source cites `tests/test_database.py::test_get_user`. Exact
+  string matching rejected a correct citation of a real, passing test.
+- **Decision:** a bare function id is citable, but only when *every*
+  parametrised instance passed. If any case failed, the function as a whole did
+  not hold and cannot serve as proof. `failed_test_ids` is now carried
+  alongside `passed_test_ids` so the gate can tell the difference.
+- **Why this mattered more than it looked:** a false rejection is as damaging
+  to this project's claim as a false verification. A gate that blocks correct
+  patches for a reason the model cannot act on is not strictness, it is a bug —
+  and it would have read on stage as the agent being unable to fix trivial code.
+- **Revisit only if:** pytest changes its node-id format.

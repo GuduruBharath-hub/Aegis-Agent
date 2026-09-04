@@ -385,6 +385,7 @@ class Orchestrator:
                     candidate,
                     proposal.rationale,
                     passed_test_ids=evidence.passed_test_ids,
+                    failed_test_ids=evidence.failed_test_ids,
                     evidence_refs=evidence.evidence_refs,
                 )
                 await self._emit_gate(job, "explain", explanation, attempt_number)

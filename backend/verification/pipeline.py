@@ -69,6 +69,7 @@ class SandboxCandidateVerifier:
             summary_values.get("error", 0)
         )
         passed_test_ids: list[str] = []
+        failed_test_ids: list[str] = []
         failed_tests: list[dict[str, object]] = []
         tests = pytest_report.get("tests", [])
         for test in tests if isinstance(tests, list) else []:
@@ -79,6 +80,8 @@ class SandboxCandidateVerifier:
                 if isinstance(node_id, str):
                     passed_test_ids.append(node_id)
                 continue
+            if isinstance(node_id, str):
+                failed_test_ids.append(node_id)
             call = test.get("call", {})
             failed_tests.append(
                 {
@@ -151,6 +154,7 @@ class SandboxCandidateVerifier:
                 },
             ),
             passed_test_ids=tuple(passed_test_ids),
+            failed_test_ids=tuple(failed_test_ids),
             evidence_refs=tuple(
                 f"security.payload[{index}]"
                 for index, payload in enumerate(payload_items)
