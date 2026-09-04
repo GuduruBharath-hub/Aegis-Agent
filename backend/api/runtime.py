@@ -7,8 +7,8 @@ from pathlib import Path
 import sqlite3
 from typing import Protocol
 
-from backend.agent.feather_client import FeatherPatchModel
-from backend.core.config import FeatherSettings, GitHubSettings, RuntimeSettings
+from backend.agent.model_router import ModelRouter
+from backend.core.config import GitHubSettings, RuntimeSettings, load_model_chain
 from backend.core.event_bus import EventBus
 from backend.core.models import BenchmarkRun, Finding, Job
 from backend.core.orchestrator import Orchestrator
@@ -95,7 +95,7 @@ class ApiRuntime:
             workspace=workspace,
             validator=validator,
             scanner=RepositoryScanner(),
-            model=FeatherPatchModel(FeatherSettings()),
+            model=ModelRouter.from_slots(load_model_chain()),
             verifier=SandboxCandidateVerifier(SandboxRunner(PROJECT_ROOT)),
             delivery=GitHubClient(GitHubSettings()),
             job_wall_clock_seconds=runtime_settings.job_wall_clock_seconds,

@@ -80,3 +80,24 @@ why, and what would have to change to revisit it.
   run repeatedly without spending provider quota, and works on a dead network.
 - **Revisit only if:** a probe is added or a timeout raised — the derived budget
   and its regression test must be updated together.
+
+## 2026-09-05 - Multi-provider model chain
+
+- **Decision:** Three ordered providers configured in `.env`, tried in order.
+  Primary GLM, then DeepSeek, then OpenRouter. `ModelRouter` implements
+  `PatchModel`, so the orchestrator is unaware there is more than one.
+- **Why three, and why those two:** a fallback in the same vendor is not a
+  fallback. DeepSeek is a different vendor, cheap and strong on code.
+  OpenRouter is a meta-provider, so the last slot is itself redundant and can
+  reach a free-tier model when paid quota is gone.
+- **Failover covers transport, not judgement.** Rate limit, exhausted credit,
+  unreachable host or unusable output all move to the next provider. A
+  candidate *rejected by a gate* never does: that is the system working, and
+  the retry prompt is addressed to the patch the same model produced.
+- **Attribution:** `ModelRouter.name` is updated to the provider that actually
+  produced the candidate, before the orchestrator records `attempts.model`.
+  The evidence trail must never credit a patch to a model that did not write it.
+- **No client work per provider:** every supported provider speaks the OpenAI
+  chat-completions protocol, so a slot is three environment variables.
+- **Revisit only if:** a provider is added that is not OpenAI-compatible; it
+  then needs its own `PatchModel` implementation, not a new slot.

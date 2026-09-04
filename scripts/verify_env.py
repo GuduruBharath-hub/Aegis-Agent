@@ -22,7 +22,13 @@ import httpx
 from pydantic import ValidationError
 
 from backend.agent.feather_client import FeatherPatchModel
-from backend.core.config import FeatherSettings, GitHubSettings, RuntimeSettings
+from backend.core.config import (
+    FeatherSettings,
+    GitHubSettings,
+    ModelChainError,
+    RuntimeSettings,
+    load_model_chain,
+)
 from backend.core.replay import ReplayArchive, ReplayError
 from backend.core.workspace import read_text
 from backend.storage.database import Database
@@ -97,6 +103,25 @@ def check_docker(image: str) -> tuple[CheckResult, CheckResult]:
         "ok" if inspected.returncode == 0 else "fail",
         f"image {image} present",
         "ready" if inspected.returncode == 0 else "run SandboxRunner.ensure_image()",
+    )
+
+
+def check_model_chain() -> CheckResult:
+    """Report the configured provider chain without contacting anyone.
+
+    A single configured provider is a demo with no redundancy, which is a
+    warning rather than a failure: it still works, right up until a quota runs
+    out mid-run.
+    """
+    try:
+        chain = load_model_chain()
+    except ModelChainError as exc:
+        return CheckResult("fail", "model chain configured", str(exc)[:160])
+    described = " -> ".join(f"{slot.label}:{slot.model}" for slot in chain)
+    return CheckResult(
+        "ok" if len(chain) > 1 else "warn",
+        f"model chain: {len(chain)} provider(s)",
+        described if len(chain) > 1 else f"{described} (no fallback configured)",
     )
 
 
@@ -274,6 +299,7 @@ async def run_checks(project_root: Path, *, offline: bool = False) -> list[Check
         check_python(),
         docker_daemon,
         docker_image,
+        check_model_chain(),
         feather,
         github,
         autocrlf,
