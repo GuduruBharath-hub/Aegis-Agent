@@ -39,7 +39,7 @@ Prove the vulnerability is real and detectable before writing any agent code.
       **Done when:** it reports `exploited=True` on the vulnerable tree and
       `exploited=False` on a hand-fixed tree. This is the P1 gate.
 
-- [ ] **P1-6 · Scanner.** `scanner/bandit_runner.py`, `custom_rules.py` (AST rule
+- [x] **P1-6 · Scanner.** `scanner/bandit_runner.py`, `custom_rules.py` (AST rule
       for concatenated `execute()`), `normalizer.py`. Write these against Bandit's
       *actual* JSON output, not the documented shape. §04
       **Done when:** scanning `sql_retry` yields one normalised `Finding` naming
