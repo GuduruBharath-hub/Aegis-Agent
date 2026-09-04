@@ -23,7 +23,7 @@ Prove the vulnerability is real and detectable before writing any agent code.
       `policies/security_policy.json` (§10), `.env.example` (§19).
       **Done when:** `python -c "import backend.main"` succeeds.
 
-- [ ] **P1-3 · Benchmark repo `sql_basic`.** A small Flask-free sqlite app with
+- [x] **P1-3 · Benchmark repo `sql_basic`.** A small Flask-free sqlite app with
       `get_user(uid)` built by string concatenation, plus 15–20 real public
       tests in `tests/`. Initialise it as its own git repo. §16
       **Done when:** `pytest` passes inside the fixture, and `git log` shows one commit.
