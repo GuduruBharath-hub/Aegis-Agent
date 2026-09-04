@@ -251,7 +251,11 @@ def _job_ref(job: Job) -> JobRef:
 def _job_response(runtime: ApiRuntime, job: Job) -> JobResponse:
     findings = runtime.findings.list_for_job(job.id)
     finding = _finding_response(findings[0]) if findings else None
-    return JobResponse(**asdict(job), finding=finding)
+    return JobResponse(
+        **asdict(job),
+        finding=finding,
+        repository_changed=job.pr_url is not None,
+    )
 
 
 def _finding_response(finding: Finding) -> FindingResponse:

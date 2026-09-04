@@ -16,6 +16,12 @@ export interface Job {
   current_attempt?: number;
   max_attempts: number;
   error_message?: string;
+  state: string;
+  final_decision: string | null;
+  final_reason: string | null;
+  repository_changed: boolean;
+  pr_url: string | null;
+  sandbox_tier: string | null;
   metadata?: Record<string, unknown>;
 }
 
@@ -27,6 +33,7 @@ export interface JobSummary {
   completed_at?: string;
   total_findings: number;
   patched_findings: number;
+  final_decision: string | null;
 }
 
 export interface JobEvent {

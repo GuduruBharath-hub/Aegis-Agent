@@ -139,6 +139,7 @@ def test_cli_demo_endpoint_streams_through_verified(tmp_path: Path) -> None:
     assert "event: state_changed" in response.text
     assert '"state":"completed"' in response.text
     assert jobs[0]["final_decision"] == "verified"
+    assert jobs[0]["repository_changed"] is False
     runtime.connection.close()
 
 
@@ -229,6 +230,52 @@ def test_benchmark_endpoint_records_actual_outcome_and_metrics(tmp_path: Path) -
         "correct_runs": 1,
         "false_verifications": 0,
     }
+    runtime.connection.close()
+
+
+def test_governance_outcomes_explicitly_report_repository_unchanged(
+    tmp_path: Path,
+) -> None:
+    runtime = _runtime(tmp_path)
+    runtime.jobs.create(
+        Job(
+            id="job-escalated",
+            repository="fixture",
+            repository_url="fixture",
+            base_sha="HEAD",
+            mode="demo",
+            max_attempts=3,
+            state="escalated",
+            current_attempt=3,
+            final_decision="escalated",
+            final_reason="retry_budget_exhausted",
+        )
+    )
+    runtime.jobs.create(
+        Job(
+            id="job-policy",
+            repository="fixture",
+            repository_url="fixture",
+            base_sha="HEAD",
+            mode="demo",
+            max_attempts=3,
+            state="policy_rejected",
+            current_attempt=3,
+            final_decision="policy_rejected",
+            final_reason="protected path changed",
+        )
+    )
+
+    with TestClient(create_app(runtime)) as client:
+        escalated = client.get("/api/jobs/job-escalated").json()
+        policy = client.get("/api/jobs/job-policy").json()
+
+    assert escalated["final_decision"] == "escalated"
+    assert escalated["repository_changed"] is False
+    assert escalated["pr_url"] is None
+    assert policy["final_decision"] == "policy_rejected"
+    assert policy["repository_changed"] is False
+    assert policy["pr_url"] is None
     runtime.connection.close()
 
 

@@ -8,6 +8,7 @@ import { JobStatusBadge } from '@/components/jobs/JobStatusBadge';
 import { JobEvents } from '@/components/jobs/JobEvents';
 import { JobTimeline } from '@/components/jobs/JobTimeline';
 import { AttemptCard } from '@/components/jobs/AttemptCard';
+import { FinalDecision } from '@/components/remediation/FinalDecision';
 import { Progress } from '@/components/ui/Progress';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { useJob } from '@/hooks/useJob';
@@ -165,6 +166,14 @@ export default function JobDetailPage() {
             </div>
           )}
         </div>
+
+        <FinalDecision
+          finalDecision={job.final_decision}
+          reason={job.final_reason}
+          repositoryChanged={job.repository_changed}
+          attemptsUsed={job.current_attempt ?? 0}
+          maxAttempts={job.max_attempts}
+        />
 
         {/* Tabs */}
         <div style={{ display: 'flex', gap: '6px', marginBottom: '16px' }}>

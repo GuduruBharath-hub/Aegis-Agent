@@ -48,6 +48,7 @@ class JobResponse(BaseModel):
     branch_name: str | None
     pr_url: str | None
     pr_number: int | None
+    repository_changed: bool
     finding: FindingResponse | None = None
     created_at: str
     updated_at: str

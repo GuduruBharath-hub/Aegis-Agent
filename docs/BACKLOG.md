@@ -168,7 +168,7 @@ The whole loop runs end to end with a **stub** brain. No LLM yet.
       If this is not mostly a copy of the SQL path, the adapter interface is
       wrong — stop and fix the interface.
 - [x] **P5-4 · Benchmark cases 5–10** and `scripts/run_benchmark.py`. §16
-- [ ] **P5-5 · Escalation and policy-block screens** as governance outcomes,
+- [x] **P5-5 · Escalation and policy-block screens** as governance outcomes,
       not errors. §20, §54–55 equivalents
 
 > **P5 GATE:** Demos 1, 2 and 3 launch from the home page and reach their
