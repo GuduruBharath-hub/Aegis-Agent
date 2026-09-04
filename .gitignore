@@ -1,0 +1,38 @@
+# --- secrets ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials.*
+secrets.*
+
+# --- aegis runtime state ---
+aegis.db
+aegis.db-wal
+aegis.db-shm
+.workspaces/
+replay/*.jsonl
+
+# --- python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+
+# --- node / next ---
+node_modules/
+.next/
+out/
+dist/
+.turbo/
+
+# --- os / editor ---
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
