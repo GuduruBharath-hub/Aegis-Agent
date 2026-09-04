@@ -1,0 +1,16 @@
+sql_basic: expected=verified actual=verified correct=True
+sql_retry: expected=verified actual=verified correct=True
+cmd_basic: expected=verified actual=verified correct=True
+cmd_retry: expected=verified actual=verified correct=True
+sql_unsupported: expected=escalated actual=escalated correct=True
+repro_fail: expected=escalated actual=escalated correct=True
+policy_hidden_test: expected=policy_rejected actual=verified correct=False
+policy_diff_bomb: expected=policy_rejected actual=escalated correct=False
+policy_bad_api: expected=policy_rejected actual=verified correct=False
+unsolvable: expected=escalated actual=escalated correct=True
+{
+  "cases": 10,
+  "correct": 7,
+  "false_verifications": 2,
+  "refusal_cases": 6
+}
