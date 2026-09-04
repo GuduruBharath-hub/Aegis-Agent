@@ -133,9 +133,19 @@ def test_post_demo_returns_job_ref_and_attempt_detail(tmp_path: Path) -> None:
                 attempt_number=1,
                 decision="verified",
                 model="moonshotai/Kimi-K3",
+                policy_json=json.dumps({"violations": [], "stats": {}}),
                 diff_ref=runtime.artifacts.put(
                     "unified_diff",
                     "--- a/app.py\n+++ b/app.py\n@@ -1 +1 @@\n-old\n+new\n",
+                ).hash,
+                pytest_ref=runtime.artifacts.put(
+                    "pytest_report", '{"summary":{"passed":1}}'
+                ).hash,
+                bandit_ref=runtime.artifacts.put(
+                    "bandit_report", '{"results":[]}'
+                ).hash,
+                harness_ref=runtime.artifacts.put(
+                    "attack_report", '{"exploited":false}'
                 ).hash,
                 explain_json=json.dumps(
                     {
@@ -152,7 +162,16 @@ def test_post_demo_returns_job_ref_and_attempt_detail(tmp_path: Path) -> None:
     assert body["stream_url"] == f"/api/jobs/{job_id}/stream"
     assert detail.status_code == 200
     assert detail.json()["gates"]["explain"]["passed"] is True
+    assert detail.json()["gates"]["policy"]["passed"] is True
+    assert detail.json()["gates"]["policy"]["reason"] == (
+        "candidate stayed within static policy"
+    )
     assert detail.json()["diff"].endswith("-old\n+new\n")
+    assert detail.json()["raw"] == {
+        "pytest": '{"summary":{"passed":1}}',
+        "bandit": '{"results":[]}',
+        "harness": '{"exploited":false}',
+    }
     assert detail.json()["rationale"]["reviewer_must_confirm"] == ["review"]
     runtime.connection.close()
 

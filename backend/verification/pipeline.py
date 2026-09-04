@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from pathlib import Path
 from typing import Literal
 
@@ -152,6 +153,9 @@ class SandboxCandidateVerifier:
                 for index, payload in enumerate(payload_items)
                 if isinstance(payload, dict)
             ),
+            raw_pytest=json.dumps(pytest_report, indent=2, sort_keys=True),
+            raw_bandit=json.dumps(run.report.bandit, indent=2, sort_keys=True),
+            raw_harness=json.dumps(attack, indent=2, sort_keys=True),
         )
 
     async def _ensure_image(self) -> None:

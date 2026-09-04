@@ -304,8 +304,9 @@ def _attempt_summary(attempt: Attempt) -> AttemptSummary:
 def _attempt_detail(runtime: ApiRuntime, attempt: Attempt) -> AttemptDetail:
     explanation = _json_object(attempt.explain_json)
     rationale = explanation.pop("rationale", None)
+    policy = _policy_gate(_json_object(attempt.policy_json))
     gates = {
-        "policy": _json_object(attempt.policy_json),
+        "policy": policy,
         "security": _json_object(attempt.security_json),
         "regression": _json_object(attempt.regression_json),
         "post_scan": _json_object(attempt.post_scan_json),
@@ -325,6 +326,17 @@ def _attempt_detail(runtime: ApiRuntime, attempt: Attempt) -> AttemptDetail:
         tree_hash_pre=attempt.tree_hash_pre,
         tree_hash_post=attempt.tree_hash_post,
     )
+
+
+def _policy_gate(policy: dict[str, Any]) -> dict[str, Any]:
+    violations = policy.get("violations")
+    if "passed" not in policy and isinstance(violations, list):
+        policy["passed"] = not violations
+    if "reason" not in policy and isinstance(policy.get("passed"), bool):
+        first = violations[0] if isinstance(violations, list) and violations else None
+        message = first.get("message") if isinstance(first, dict) else None
+        policy["reason"] = message or "candidate stayed within static policy"
+    return policy
 
 
 def _artifact_content(runtime: ApiRuntime, reference: str | None) -> str | None:

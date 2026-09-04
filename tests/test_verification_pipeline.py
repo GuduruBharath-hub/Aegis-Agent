@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from pathlib import Path
 
 from backend.core.models import Finding
@@ -96,6 +97,9 @@ def test_verifier_reports_citable_evidence_without_a_verdict(tmp_path: Path) -> 
         "security.payload[0]",
         "security.payload[1]",
     )
+    assert json.loads(evidence.raw_pytest or "{}")["summary"]["collected"] == 1
+    assert json.loads(evidence.raw_bandit or "{}")["results"] == []
+    assert json.loads(evidence.raw_harness or "{}")["benign_preserved"] is True
     assert runner.ensure_calls == 1
 
 

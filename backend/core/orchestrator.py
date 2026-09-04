@@ -427,13 +427,21 @@ class Orchestrator:
             lines_added=policy.stats.lines_added,
             lines_removed=policy.stats.lines_removed,
             diff_ref=diff_ref,
-            policy_json=json.dumps(asdict(policy), sort_keys=True),
+            policy_json=json.dumps(
+                {"passed": policy.passed, **asdict(policy)},
+                sort_keys=True,
+            ),
             decision="rejected",
             failure_gate="policy",
             failure_reason=policy.violations[0].message,
             completed_at=utcnow_iso(),
         )
         return self.attempts.update(recorded)
+
+    def _store_evidence(self, kind: str, content: str | None) -> str | None:
+        if content is None:
+            return None
+        return self.artifacts.put(kind, content).hash
 
     def _record_verdict(
         self,
@@ -453,7 +461,13 @@ class Orchestrator:
             lines_added=policy.stats.lines_added,
             lines_removed=policy.stats.lines_removed,
             diff_ref=diff_ref,
-            policy_json=json.dumps(asdict(policy), sort_keys=True),
+            pytest_ref=self._store_evidence("pytest_report", evidence.raw_pytest),
+            bandit_ref=self._store_evidence("bandit_report", evidence.raw_bandit),
+            harness_ref=self._store_evidence("attack_report", evidence.raw_harness),
+            policy_json=json.dumps(
+                {"passed": policy.passed, **asdict(policy)},
+                sort_keys=True,
+            ),
             security_json=json.dumps(asdict(evidence.security), sort_keys=True),
             regression_json=json.dumps(asdict(evidence.regression), sort_keys=True),
             post_scan_json=json.dumps(asdict(evidence.post_scan), sort_keys=True),

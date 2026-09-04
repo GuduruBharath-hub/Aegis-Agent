@@ -149,7 +149,7 @@ The whole loop runs end to end with a **stub** brain. No LLM yet.
       schemas, `useJobStream` (history then live tail). §06
 - [x] **P4-2 · JobHeader, PipelineRail** with the retry arc. §06
 - [x] **P4-3 · DiffPane + TimelinePane + AttemptTabs.** §06
-- [ ] **P4-4 · GateRow** — six cards, raw evidence behind `<details>`. §06
+- [x] **P4-4 · GateRow** — six cards, raw evidence behind `<details>`. §06
 - [ ] **P4-5 · VerdictBanner + GuardrailList.** Renders `final_decision` only. §06
 - [ ] **P4-6 · ExplainPane** — click a changed line, see its rationale. §13B
 

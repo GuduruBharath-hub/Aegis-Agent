@@ -156,6 +156,9 @@ class CandidateEvidence:
     post_scan: EvidenceResult
     passed_test_ids: tuple[str, ...] = ()
     evidence_refs: tuple[str, ...] = ()
+    raw_pytest: str | None = None
+    raw_bandit: str | None = None
+    raw_harness: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

@@ -124,6 +124,9 @@ class StubVerifier:
             post_scan=post_scan,
             passed_test_ids=("tests/test_database.py::test_create_database",),
             evidence_refs=("security.payload[0]",),
+            raw_pytest='{"summary":{"collected":1}}',
+            raw_bandit='{"results":[]}',
+            raw_harness='{"payloads":[]}',
         )
 
 
@@ -291,6 +294,9 @@ def test_good_stub_candidate_completes_without_api_key(
     assert len(result.attempts) == 1
     assert result.attempts[0].decision == "verified"
     assert result.attempts[0].diff_ref is not None
+    assert result.attempts[0].pytest_ref is not None
+    assert result.attempts[0].bandit_ref is not None
+    assert result.attempts[0].harness_ref is not None
     database = Database(tmp_path / "aegis.db")
     connection = database.connect()
     artifact = database.artifacts(connection).get(result.attempts[0].diff_ref)
