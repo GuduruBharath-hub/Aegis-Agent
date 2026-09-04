@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Awaitable, Callable
-from dataclasses import asdict
 import json
 from typing import Any
 
@@ -15,6 +14,7 @@ from backend.agent.llm_client import (
     PatchProposal,
     TechnicalErrorReporter,
 )
+from backend.agent.prompts import SYSTEM_PROMPT, render_patch_prompt
 from backend.core.config import FeatherSettings
 from backend.core.models import FailureEvidence, Finding
 
@@ -221,28 +221,21 @@ class FeatherPatchModel:
         policy_summary: str,
         failure_evidence: FailureEvidence | None,
     ) -> dict[str, Any]:
-        request = {
-            "finding": asdict(finding),
-            "repository_context": context,
-            "policy_summary": policy_summary,
-            "failure_evidence": (
-                asdict(failure_evidence) if failure_evidence is not None else None
-            ),
-            "output_schema": PatchProposal.model_json_schema(),
-        }
         return {
             "model": self.settings.model,
             "messages": [
                 {
                     "role": "system",
-                    "content": (
-                        "Propose a minimal security patch. Return only one JSON "
-                        "object that satisfies the supplied output_schema."
-                    ),
+                    "content": SYSTEM_PROMPT,
                 },
                 {
                     "role": "user",
-                    "content": json.dumps(request, sort_keys=True),
+                    "content": render_patch_prompt(
+                        finding,
+                        context,
+                        policy_summary,
+                        failure_evidence,
+                    ),
                 },
             ],
             "response_format": {"type": "json_object"},

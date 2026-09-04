@@ -145,6 +145,7 @@ class PolicyResult:
 class EvidenceResult:
     passed: bool
     reason: str
+    detail: dict[str, object] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)

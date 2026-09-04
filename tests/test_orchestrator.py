@@ -94,7 +94,16 @@ class StubVerifier:
             post_scan = EvidenceResult(True, "original finding absent")
         elif REGRESSION_QUERY in source:
             security = EvidenceResult(True, "attack payloads blocked")
-            regression = EvidenceResult(False, "partial matching test failed")
+            regression = EvidenceResult(
+                False,
+                "partial matching test failed",
+                {
+                    "test_id": "tests/test_database.py::test_search_partial_match",
+                    "expected": 3,
+                    "actual": 0,
+                    "failing_call": 'search_users("ali")',
+                },
+            )
             post_scan = EvidenceResult(True, "original finding absent")
         else:
             security = EvidenceResult(False, "attack remained exploitable")
@@ -229,6 +238,9 @@ def test_regression_evidence_drives_retry_then_good_candidate(
     retry_evidence = result.model.calls[1]
     assert retry_evidence is not None
     assert retry_evidence.failed_gate == "regression"
+    assert retry_evidence.detail["regression"]["test_id"] == (
+        "tests/test_database.py::test_search_partial_match"
+    )
     assert set(retry_evidence.passed_gates) == {
         "policy",
         "security",

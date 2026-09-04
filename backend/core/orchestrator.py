@@ -460,18 +460,36 @@ class Orchestrator:
         verdict: Verdict,
     ) -> FailureEvidence:
         results = {
-            "policy": (policy.passed, "static policy passed"),
-            "security": (evidence.security.passed, evidence.security.reason),
-            "regression": (evidence.regression.passed, evidence.regression.reason),
-            "post_scan": (evidence.post_scan.passed, evidence.post_scan.reason),
-            "integrity": (integrity.passed, integrity.reason),
-            "explain": (evidence.explain.passed, evidence.explain.reason),
+            "policy": (policy.passed, "static policy passed", {}),
+            "security": (
+                evidence.security.passed,
+                evidence.security.reason,
+                evidence.security.detail,
+            ),
+            "regression": (
+                evidence.regression.passed,
+                evidence.regression.reason,
+                evidence.regression.detail,
+            ),
+            "post_scan": (
+                evidence.post_scan.passed,
+                evidence.post_scan.reason,
+                evidence.post_scan.detail,
+            ),
+            "integrity": (integrity.passed, integrity.reason, {}),
+            "explain": (
+                evidence.explain.passed,
+                evidence.explain.reason,
+                evidence.explain.detail,
+            ),
         }
-        passed = tuple(name for name, (did_pass, _) in results.items() if did_pass)
+        passed = tuple(
+            name for name, (did_pass, _, _) in results.items() if did_pass
+        )
         failed_gate = verdict.first_failure or "unknown"
         detail = {
-            name: {"passed": did_pass, "reason": reason}
-            for name, (did_pass, reason) in results.items()
+            name: {"passed": did_pass, "reason": reason, **evidence_detail}
+            for name, (did_pass, reason, evidence_detail) in results.items()
             if not did_pass
         }
         return FailureEvidence(

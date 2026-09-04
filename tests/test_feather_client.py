@@ -42,10 +42,11 @@ def test_feather_adapter_returns_schema_valid_patch_proposal() -> None:
         assert body["stream"] is False
         assert body["temperature"] == 0
         assert body["seed"] == 0
-        prompt = json.loads(body["messages"][1]["content"])
-        assert prompt["finding"]["id"] == FINDING.id
-        assert prompt["repository_context"] == "source context"
-        assert prompt["policy_summary"] == "policy summary"
+        prompt = body["messages"][1]["content"]
+        assert FINDING.id in prompt
+        assert "source context" in prompt
+        assert "policy summary" in prompt
+        assert "ORIGINAL REPOSITORY CONTEXT" in prompt
         return httpx.Response(
             200,
             json={

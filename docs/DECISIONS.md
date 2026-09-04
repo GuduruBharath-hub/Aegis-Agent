@@ -41,6 +41,20 @@ why, and what would have to change to revisit it.
   [plan limits](https://featherless.ai/docs/api-reference-plan), and
   [concurrency limits](https://featherless.ai/docs/concurrency-limits).
 
+## 2026-09-04 — Retry-prompt verification (P3-4)
+
+- **Decision:** The retry prompt repeats the immutable original context, labels
+  the previous candidate as rejected context only, lists every passed gate, and
+  includes structured details for each failed gate.
+- **Evidence:** `python -m scripts.verify_retry_prompt` seeded a deterministic
+  first candidate that parameterized SQL but broke substring matching. Real
+  Docker evidence rejected attempt 1. That evidence was then sent to the live
+  Kimi K3 adapter, whose new candidate passed on attempt 2 and received the
+  gate-issued `verified` decision.
+- **Why seed attempt 1:** This makes the rejection beat reproducible instead of
+  relying on a capable model to happen to make the intended demonstration
+  mistake. The correcting proposal is still generated live by Kimi.
+
 ## 2026-09-04 — Sandbox tier (P1-1)
 
 - **Decision:** Use Tier A (Docker) as the sandbox implementation.
