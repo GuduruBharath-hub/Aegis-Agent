@@ -26,7 +26,8 @@ from backend.core.models import (
     utcnow_iso,
 )
 from backend.core.states import JobState
-from backend.core.workspace import WorkspaceManager
+from backend.core.workspace import WorkspaceManager, read_text
+from backend.github.client import GitHubDeliveryError, PullRequestResult
 from backend.storage.repositories import (
     ArtifactRepo,
     AttemptRepo,
@@ -55,6 +56,19 @@ class CandidateVerifier(Protocol):
     ) -> CandidateEvidence: ...
 
 
+class PullRequestDeliverer(Protocol):
+    async def create_pull_request(
+        self,
+        *,
+        expected_base_sha: str,
+        branch: str,
+        files: dict[str, str],
+        title: str,
+        body: str,
+        commit_message: str,
+    ) -> PullRequestResult: ...
+
+
 class Orchestrator:
     def __init__(
         self,
@@ -69,6 +83,7 @@ class Orchestrator:
         scanner: FindingScanner,
         model: PatchModel,
         verifier: CandidateVerifier,
+        delivery: PullRequestDeliverer,
         context_builder: ContextBuilder | None = None,
     ) -> None:
         self.jobs = jobs
@@ -81,6 +96,7 @@ class Orchestrator:
         self.scanner = scanner
         self.model = model
         self.verifier = verifier
+        self.delivery = delivery
         self.context_builder = context_builder or ContextBuilder()
 
     async def run(self, job_id: str) -> Job:
@@ -95,6 +111,11 @@ class Orchestrator:
             job.base_sha,
             job.id,
         )
+        resolved_base_sha = await asyncio.to_thread(self.workspace.revision, base)
+        if job.base_sha != resolved_base_sha:
+            job = self.jobs.update(
+                replace(job, base_sha=resolved_base_sha, updated_at=utcnow_iso())
+            )
 
         job = await self._transition(job, JobState.SCANNING)
         await self._emit(job, "scan_started", "Repository scan started")
@@ -369,11 +390,11 @@ class Orchestrator:
                         severity="success",
                         attempt=attempt_number,
                     )
-                    job = await self._transition(job, JobState.CREATING_PR)
-                    return await self._transition(
+                    return await self._deliver(
                         job,
-                        JobState.COMPLETED,
-                        completed_at=utcnow_iso(),
+                        finding,
+                        proposal,
+                        integrity.pre_run,
                     )
 
                 if not integrity.passed:
@@ -412,6 +433,98 @@ class Orchestrator:
                 await asyncio.to_thread(self.workspace.cleanup_candidate, candidate)
 
         raise AssertionError("bounded attempt loop ended without a terminal state")
+
+    async def _deliver(
+        self,
+        job: Job,
+        finding: Finding,
+        proposal: PatchProposal,
+        verified_hash: str,
+    ) -> Job:
+        job = await self._transition(job, JobState.CREATING_PR)
+        changes = {file.path: file.new_content for file in proposal.files}
+        delivery_tree = await asyncio.to_thread(
+            self.workspace.prepare_delivery,
+            job.id,
+            changes,
+        )
+        try:
+            delivered_hash = await asyncio.to_thread(tree_hash, delivery_tree)
+            if delivered_hash != verified_hash:
+                await self._emit(
+                    job,
+                    "delivery_integrity_failed",
+                    "Delivery tree differs from the verified candidate",
+                    severity="critical",
+                    data={
+                        "verified_hash": verified_hash,
+                        "delivery_hash": delivered_hash,
+                    },
+                )
+                return await self._transition(
+                    job,
+                    JobState.FAILED,
+                    completed_at=utcnow_iso(),
+                )
+
+            branch = _branch_name(finding)
+            try:
+                pull = await self.delivery.create_pull_request(
+                    expected_base_sha=job.base_sha,
+                    branch=branch,
+                    files={
+                        path: read_text(delivery_tree / Path(path))
+                        for path in sorted(changes)
+                    },
+                    title=f"Fix {finding.cwe}: {finding.symbol}",
+                    body=(
+                        f"AegisAgent job `{job.id}` verified this candidate through "
+                        "all six configured gates. Human review is required."
+                    ),
+                    commit_message=f"fix: remediate {finding.cwe} in {finding.symbol}",
+                )
+            except GitHubDeliveryError as exc:
+                await self._emit(
+                    job,
+                    "technical_error",
+                    "GitHub delivery failed after verification",
+                    severity="critical",
+                    data={"component": "github", "code": type(exc).__name__},
+                )
+                return await self._transition(
+                    job,
+                    JobState.FAILED,
+                    completed_at=utcnow_iso(),
+                )
+
+            job = self.jobs.update(
+                replace(
+                    job,
+                    branch_name=pull.branch,
+                    pr_url=pull.url,
+                    pr_number=pull.number,
+                    updated_at=utcnow_iso(),
+                )
+            )
+            await self._emit(
+                job,
+                "pr_created",
+                "Verified candidate opened as a pull request",
+                severity="success",
+                data={
+                    "url": pull.url,
+                    "number": pull.number,
+                    "branch": pull.branch,
+                    "delivery_hash": delivered_hash,
+                },
+            )
+            return await self._transition(
+                job,
+                JobState.COMPLETED,
+                completed_at=utcnow_iso(),
+            )
+        finally:
+            await asyncio.to_thread(self.workspace.cleanup_delivery, delivery_tree)
 
     def _record_policy_rejection(
         self,
@@ -643,3 +756,9 @@ class Orchestrator:
                 data_json=json.dumps(data, sort_keys=True) if data is not None else None,
             )
         )
+
+
+def _branch_name(finding: Finding) -> str:
+    identifier = finding.id.replace("_", "-").lower()
+    cwe = finding.cwe.replace("_", "-").lower()
+    return f"aegis/{identifier}-{cwe}"

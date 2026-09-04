@@ -33,6 +33,7 @@ from backend.core.models import (
 from backend.core.orchestrator import Orchestrator
 from backend.core.states import JobState
 from backend.core.workspace import WorkspaceManager, read_text, write_text
+from backend.github.client import GitHubDeliveryError, PullRequestResult
 from backend.storage.database import Database
 from backend.validator.pipeline import ValidatorPipeline, ValidatorPolicy
 
@@ -130,6 +131,35 @@ class StubVerifier:
         )
 
 
+@dataclass(slots=True)
+class StubDelivery:
+    calls: list[dict[str, object]]
+
+    def __init__(self) -> None:
+        self.calls = []
+
+    async def create_pull_request(self, **kwargs: object) -> PullRequestResult:
+        self.calls.append(kwargs)
+        return PullRequestResult(
+            url="https://github.invalid/example/demo/pull/1",
+            number=1,
+            branch=str(kwargs["branch"]),
+        )
+
+
+class FailingDelivery(StubDelivery):
+    async def create_pull_request(self, **kwargs: object) -> PullRequestResult:
+        self.calls.append(kwargs)
+        raise GitHubDeliveryError("simulated outage")
+
+
+class MutatingDeliveryWorkspace(WorkspaceManager):
+    def prepare_delivery(self, job_id: str, changes: dict[str, str]) -> Path:
+        delivery = super().prepare_delivery(job_id, changes)
+        write_text(delivery / "delivery-mutation.txt", "unexpected\n")
+        return delivery
+
+
 @dataclass(frozen=True, slots=True)
 class RunResult:
     job: Job
@@ -137,6 +167,7 @@ class RunResult:
     events: tuple[Event, ...]
     model: StubPatchModel | FeatherPatchModel
     verifier: StubVerifier
+    delivery: StubDelivery
     job_workspace: Path
 
 
@@ -227,7 +258,9 @@ def _execute(
     *,
     max_attempts: int,
     mutate_candidate: bool = False,
+    mutate_delivery: bool = False,
     model_override: FeatherPatchModel | None = None,
+    delivery_override: StubDelivery | None = None,
 ) -> RunResult:
     tmp_path.mkdir(parents=True, exist_ok=True)
     database = Database(tmp_path / "aegis.db")
@@ -250,14 +283,16 @@ def _execute(
         )
         model = model_override or StubPatchModel(proposals)
         verifier = StubVerifier(mutate_candidate=mutate_candidate)
+        delivery = delivery_override or StubDelivery()
         workspace_root = tmp_path / ".workspaces"
+        workspace_type = MutatingDeliveryWorkspace if mutate_delivery else WorkspaceManager
         orchestrator = Orchestrator(
             jobs=jobs,
             attempts=attempts,
             artifacts=artifacts,
             findings=database.findings(connection),
             events=EventBus(event_repo),
-            workspace=WorkspaceManager(workspace_root),
+            workspace=workspace_type(workspace_root),
             validator=ValidatorPipeline(
                 ValidatorPolicy.from_file(
                     PROJECT_ROOT / "policies" / "security_policy.json"
@@ -266,6 +301,7 @@ def _execute(
             scanner=StaticScanner(),
             model=model,
             verifier=verifier,
+            delivery=delivery,
         )
 
         final_job = asyncio.run(orchestrator.run(job.id))
@@ -275,6 +311,7 @@ def _execute(
             events=tuple(event_repo.list_for_job(job.id)),
             model=model,
             verifier=verifier,
+            delivery=delivery,
             job_workspace=workspace_root / job.id,
         )
     finally:
@@ -293,6 +330,13 @@ def test_good_stub_candidate_completes_without_api_key(
     assert result.job.final_decision == "verified"
     assert len(result.attempts) == 1
     assert result.attempts[0].decision == "verified"
+    assert result.job.pr_url == "https://github.invalid/example/demo/pull/1"
+    assert result.job.pr_number == 1
+    assert result.job.branch_name == "aegis/aegis-stub-sql-cwe-89"
+    assert result.delivery.calls[0]["expected_base_sha"] == result.job.base_sha
+    assert result.delivery.calls[0]["files"] == {
+        "app/database.py": GOOD.files[0].new_content
+    }
     assert result.attempts[0].diff_ref is not None
     assert result.attempts[0].pytest_ref is not None
     assert result.attempts[0].bandit_ref is not None
@@ -307,6 +351,11 @@ def test_good_stub_candidate_completes_without_api_key(
     assert json.loads(result.attempts[0].explain_json or "{}")["passed"] is True
     assert result.model.calls == [None]
     assert list(result.job_workspace.glob("candidate-*")) == []
+    assert not (result.job_workspace / "delivery").exists()
+    pr_event = next(event for event in result.events if event.type == "pr_created")
+    assert json.loads(pr_event.data_json or "{}")["delivery_hash"] == (
+        result.attempts[0].tree_hash_pre
+    )
 
 
 def test_regression_evidence_drives_retry_then_good_candidate(
@@ -406,6 +455,37 @@ def test_integrity_mismatch_fails_immediately_and_never_retries(
     assert result.attempts[0].failure_gate == "integrity"
     assert len(result.model.calls) == 1
     assert all(event.type != "verified" for event in result.events)
+
+
+def test_delivery_hash_mismatch_fails_without_calling_github(tmp_path: Path) -> None:
+    result = _execute(
+        tmp_path,
+        (GOOD,),
+        max_attempts=1,
+        mutate_delivery=True,
+    )
+
+    assert result.job.state == JobState.FAILED.value
+    assert result.job.final_decision == "verified"
+    assert result.delivery.calls == []
+    assert "delivery_integrity_failed" in [event.type for event in result.events]
+    assert not (result.job_workspace / "delivery").exists()
+
+
+def test_github_failure_preserves_verified_decision(tmp_path: Path) -> None:
+    delivery = FailingDelivery()
+    result = _execute(
+        tmp_path,
+        (GOOD,),
+        max_attempts=1,
+        delivery_override=delivery,
+    )
+
+    assert result.job.state == JobState.FAILED.value
+    assert result.job.final_decision == "verified"
+    assert result.job.pr_url is None
+    assert len(delivery.calls) == 1
+    assert "technical_error" in [event.type for event in result.events]
 
 
 def test_phase_two_matrix_reaches_all_four_terminal_states(tmp_path: Path) -> None:

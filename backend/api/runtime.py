@@ -7,11 +7,12 @@ import sqlite3
 from typing import Protocol
 
 from backend.agent.feather_client import FeatherPatchModel
-from backend.core.config import FeatherSettings, RuntimeSettings
+from backend.core.config import FeatherSettings, GitHubSettings, RuntimeSettings
 from backend.core.event_bus import EventBus
 from backend.core.models import Finding, Job
 from backend.core.orchestrator import Orchestrator
 from backend.core.workspace import WorkspaceManager
+from backend.github.client import GitHubClient
 from backend.sandbox.runner import SandboxRunner
 from backend.scanner.normalizer import scan_repository
 from backend.storage.database import Database
@@ -86,6 +87,7 @@ class ApiRuntime:
             scanner=RepositoryScanner(),
             model=FeatherPatchModel(FeatherSettings()),
             verifier=SandboxCandidateVerifier(SandboxRunner(PROJECT_ROOT)),
+            delivery=GitHubClient(GitHubSettings()),
         )
         return cls(
             connection=connection,

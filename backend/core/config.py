@@ -50,6 +50,23 @@ class RuntimeSettings(BaseSettings):
     max_attempts: int = Field(default=3, ge=1, le=10, alias="AEGIS_MAX_ATTEMPTS")
 
 
+class GitHubSettings(BaseSettings):
+    model_config = _ENV_CONFIG
+
+    token: SecretStr | None = Field(default=None, alias="GITHUB_TOKEN")
+    owner: str | None = Field(default=None, alias="GITHUB_OWNER")
+    repo: str | None = Field(default=None, alias="GITHUB_REPO")
+    base_branch: str = Field(default="main", alias="GITHUB_BASE_BRANCH")
+    api_url: str = Field(default="https://api.github.com", alias="GITHUB_API_URL")
+    timeout_seconds: float = Field(default=30.0, gt=0, alias="GITHUB_TIMEOUT_S")
+    transport_retries: int = Field(
+        default=2,
+        ge=0,
+        le=5,
+        alias="GITHUB_TRANSPORT_RETRIES",
+    )
+
+
 def sandbox_env(home: Path, *, executable_path: str = "") -> dict[str, str]:
     environment = {
         "PATH": executable_path,

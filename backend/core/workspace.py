@@ -102,28 +102,39 @@ class WorkspaceManager:
     ) -> Path:
         candidate = self.create_candidate(job_id, attempt_number)
         try:
-            for untrusted_path, content in changes.items():
-                relative = self._safe_relative_path(untrusted_path)
-                lexical_target = candidate / Path(*relative.parts)
-                current = candidate
-                for part in relative.parts:
-                    current /= part
-                    if current.is_symlink():
-                        raise WorkspaceError(
-                            f"patch path resolves through a symbolic link: {untrusted_path}"
-                        )
-                target = lexical_target.resolve()
-                try:
-                    target.relative_to(candidate.resolve())
-                except ValueError as exc:
-                    raise WorkspaceError(
-                        f"patch path escapes candidate: {untrusted_path}"
-                    ) from exc
-                write_text(target, content)
+            self._write_changes(candidate, changes)
         except Exception:
             self.cleanup_candidate(candidate)
             raise
         return candidate
+
+    def prepare_delivery(
+        self,
+        job_id: str,
+        changes: Mapping[str, str],
+    ) -> Path:
+        job_root = self._job_root(job_id)
+        base = job_root / "base"
+        if not base.is_dir():
+            raise WorkspaceError(f"base workspace does not exist for {job_id}")
+        delivery = job_root / "delivery"
+        if delivery.exists():
+            raise WorkspaceExistsError(f"delivery workspace already exists for {job_id}")
+        shutil.copytree(base, delivery, symlinks=True)
+        try:
+            self._write_changes(delivery, changes)
+        except Exception:
+            self.cleanup_delivery(delivery)
+            raise
+        return delivery
+
+    def revision(self, workspace: Path) -> str:
+        resolved = workspace.resolve()
+        try:
+            resolved.relative_to(self.root)
+        except ValueError as exc:
+            raise WorkspaceError("workspace path escapes the workspace root") from exc
+        return self._run_git("rev-parse", "HEAD", cwd=resolved)
 
     def cleanup_candidate(self, candidate: Path) -> None:
         resolved = candidate.resolve()
@@ -134,6 +145,17 @@ class WorkspaceManager:
 
         if len(relative.parts) != 2 or not relative.name.startswith("candidate-"):
             raise WorkspaceError("refusing to remove a non-candidate workspace")
+        if resolved.exists():
+            shutil.rmtree(resolved, onerror=_remove_readonly)
+
+    def cleanup_delivery(self, delivery: Path) -> None:
+        resolved = delivery.resolve()
+        try:
+            relative = resolved.relative_to(self.root)
+        except ValueError as exc:
+            raise WorkspaceError("delivery path escapes the workspace root") from exc
+        if len(relative.parts) != 2 or relative.name != "delivery":
+            raise WorkspaceError("refusing to remove a non-delivery workspace")
         if resolved.exists():
             shutil.rmtree(resolved, onerror=_remove_readonly)
 
@@ -155,7 +177,7 @@ class WorkspaceManager:
             raise WorkspaceError(f"unsafe patch path: {untrusted_path}")
         return portable
 
-    def _run_git(self, *args: str, cwd: Path | None = None) -> None:
+    def _run_git(self, *args: str, cwd: Path | None = None) -> str:
         environment = {
             "GIT_CONFIG_NOSYSTEM": "1",
             "GIT_CONFIG_GLOBAL": os.devnull,
@@ -177,6 +199,27 @@ class WorkspaceManager:
         if result.returncode != 0:
             detail = result.stderr.strip() or result.stdout.strip()
             raise WorkspaceError(f"git command failed: {detail}")
+        return result.stdout.strip()
+
+    def _write_changes(self, workspace: Path, changes: Mapping[str, str]) -> None:
+        for untrusted_path, content in changes.items():
+            relative = self._safe_relative_path(untrusted_path)
+            lexical_target = workspace / Path(*relative.parts)
+            current = workspace
+            for part in relative.parts:
+                current /= part
+                if current.is_symlink():
+                    raise WorkspaceError(
+                        f"patch path resolves through a symbolic link: {untrusted_path}"
+                    )
+            target = lexical_target.resolve()
+            try:
+                target.relative_to(workspace.resolve())
+            except ValueError as exc:
+                raise WorkspaceError(
+                    f"patch path escapes workspace: {untrusted_path}"
+                ) from exc
+            write_text(target, content)
 
 
 def _remove_readonly(

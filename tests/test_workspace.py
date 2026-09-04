@@ -134,8 +134,33 @@ def test_cleanup_refuses_base_and_paths_outside_workspace(tmp_path: Path) -> Non
         manager.cleanup_candidate(outside)
     with pytest.raises(WorkspaceError):
         manager.cleanup_candidate(manager.root / "job-1" / "base")
+    with pytest.raises(WorkspaceError):
+        manager.cleanup_delivery(outside)
+    with pytest.raises(WorkspaceError):
+        manager.cleanup_delivery(manager.root / "job-1" / "base")
 
     assert outside.is_dir()
+
+
+def test_delivery_tree_is_fresh_base_plus_verified_changes(tmp_path: Path) -> None:
+    repository, base_sha = _committed_repository(tmp_path)
+    manager = WorkspaceManager(tmp_path / ".workspaces")
+    base = manager.materialize(repository, base_sha, "job-delivery")
+    base_hash = _content_hash(base / "app.py")
+
+    delivery = manager.prepare_delivery(
+        "job-delivery",
+        {"app.py": "verified\r\ncontent\r"},
+    )
+
+    assert manager.revision(base) == base_sha
+    assert manager.revision(delivery) == base_sha
+    assert read_text(delivery / "app.py") == "verified\ncontent\n"
+    assert _content_hash(base / "app.py") == base_hash
+
+    manager.cleanup_delivery(delivery)
+    assert not delivery.exists()
+    assert base.is_dir()
 
 
 def test_readonly_cleanup_recovery_removes_the_blocked_path(tmp_path: Path) -> None:

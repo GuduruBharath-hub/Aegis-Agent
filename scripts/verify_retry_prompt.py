@@ -27,6 +27,7 @@ from backend.core.models import (
 )
 from backend.core.orchestrator import Orchestrator
 from backend.core.workspace import WorkspaceManager, read_text
+from backend.github.client import PullRequestResult
 from backend.sandbox.runner import SandboxRunner
 from backend.scanner.normalizer import scan_repository
 from backend.storage.database import Database
@@ -256,6 +257,16 @@ class RetryThenFeatherModel:
         )
 
 
+class SmokeDelivery:
+    async def create_pull_request(self, **kwargs: object) -> PullRequestResult:
+        branch = str(kwargs["branch"])
+        return PullRequestResult(
+            url="https://github.invalid/aegis/smoke/pull/1",
+            number=1,
+            branch=branch,
+        )
+
+
 async def main() -> None:
     runner = SandboxRunner(PROJECT_ROOT)
     runner.ensure_image()
@@ -296,6 +307,7 @@ async def main() -> None:
                 scanner=RepositoryScanner(),
                 model=model,
                 verifier=SqlRetryVerifier(runner),
+                delivery=SmokeDelivery(),
             )
             result = await orchestrator.run(job.id)
             recorded_attempts = attempts.list_for_job(job.id)
