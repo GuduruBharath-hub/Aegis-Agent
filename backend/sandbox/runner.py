@@ -7,6 +7,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from backend.adapters.base import AdapterName
 from backend.core.workspace import read_text, write_text
 from backend.sandbox.docker_backend import DockerBackend, DockerExecution
 
@@ -51,7 +52,7 @@ class SandboxRunner:
         self,
         candidate: Path,
         *,
-        adapter: Literal["sql_injection"],
+        adapter: AdapterName,
         timeout_seconds: int = 90,
     ) -> SandboxRun:
         with tempfile.TemporaryDirectory(prefix="aegis-runtime-") as temporary:
@@ -70,6 +71,10 @@ class SandboxRunner:
             "sql_injection": self.project_root
             / "aegis_hidden_tests"
             / "sql_injection"
+            / "harness.py",
+            "command_injection": self.project_root
+            / "aegis_hidden_tests"
+            / "command_injection"
             / "harness.py",
         }
         harness = harnesses.get(adapter)

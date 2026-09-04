@@ -9,6 +9,7 @@ from backend.core.workspace import read_text
 
 
 SQL_CONCAT_RULE = "AEGIS_SQL_CONCAT_EXECUTE"
+COMMAND_SHELL_RULE = "AEGIS_COMMAND_SHELL_EXECUTE"
 _SQL_PREFIX = re.compile(r"\b(SELECT|INSERT|UPDATE|DELETE|REPLACE)\b", re.IGNORECASE)
 _EXCLUDED_PARTS = {".git", ".venv", "__pycache__", "_aegis_runtime"}
 
@@ -99,6 +100,78 @@ class _SqlExecuteVisitor(ast.NodeVisitor):
         self.generic_visit(node)
 
 
+class _CommandExecuteVisitor(ast.NodeVisitor):
+    def __init__(self, file_path: str) -> None:
+        self.file_path = file_path
+        self.function_stack: list[tuple[str, set[str]]] = []
+        self.findings: list[AstFinding] = []
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        parameters = {argument.arg for argument in node.args.args}
+        parameters.update(argument.arg for argument in node.args.kwonlyargs)
+        if node.args.vararg is not None:
+            parameters.add(node.args.vararg.arg)
+        if node.args.kwarg is not None:
+            parameters.add(node.args.kwarg.arg)
+        self.function_stack.append((node.name, parameters))
+        self.generic_visit(node)
+        self.function_stack.pop()
+
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+        self.visit_FunctionDef(node)
+
+    def visit_Call(self, node: ast.Call) -> None:
+        if not self.function_stack or not node.args or not _uses_shell(node):
+            self.generic_visit(node)
+            return
+        command = node.args[0]
+        if not _is_string_construction(command):
+            self.generic_visit(node)
+            return
+
+        symbol, parameters = self.function_stack[-1]
+        referenced_parameters = sorted(
+            {
+                child.id
+                for child in ast.walk(command)
+                if isinstance(child, ast.Name) and child.id in parameters
+            }
+        )
+        if not referenced_parameters:
+            self.generic_visit(node)
+            return
+        parameter = referenced_parameters[0]
+        self.findings.append(
+            AstFinding(
+                rule_id=COMMAND_SHELL_RULE,
+                file_path=self.file_path,
+                line_start=command.lineno,
+                line_end=getattr(command, "end_lineno", command.lineno),
+                symbol=symbol,
+                parameter=parameter,
+                message=(
+                    "Shell command includes caller-controlled parameter "
+                    f"'{parameter}'"
+                ),
+            )
+        )
+        self.generic_visit(node)
+
+
+def _uses_shell(node: ast.Call) -> bool:
+    if not (
+        isinstance(node.func, ast.Attribute)
+        and node.func.attr in {"run", "Popen"}
+    ):
+        return False
+    return any(
+        keyword.arg == "shell"
+        and isinstance(keyword.value, ast.Constant)
+        and keyword.value.value is True
+        for keyword in node.keywords
+    )
+
+
 def scan_custom_rules(root: Path) -> tuple[AstFinding, ...]:
     workspace = root.resolve()
     findings: list[AstFinding] = []
@@ -116,6 +189,8 @@ def scan_custom_rules(root: Path) -> tuple[AstFinding, ...]:
 
 def scan_source(source: str, file_path: str) -> tuple[AstFinding, ...]:
     tree = ast.parse(source, filename=file_path)
-    visitor = _SqlExecuteVisitor(file_path)
-    visitor.visit(tree)
-    return tuple(visitor.findings)
+    sql_visitor = _SqlExecuteVisitor(file_path)
+    sql_visitor.visit(tree)
+    command_visitor = _CommandExecuteVisitor(file_path)
+    command_visitor.visit(tree)
+    return tuple(sql_visitor.findings + command_visitor.findings)

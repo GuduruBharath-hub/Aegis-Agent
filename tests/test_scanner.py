@@ -24,6 +24,18 @@ def test_sql_retry_emits_one_normalized_search_finding() -> None:
     assert finding.id.startswith("AEGIS-")
 
 
+def test_cmd_retry_emits_one_normalized_command_finding() -> None:
+    findings = scan_repository(REPOSITORY_ROOT / "benchmarks" / "cmd_retry")
+
+    assert len(findings) == 1
+    finding = findings[0]
+    assert finding.cwe == "CWE-78"
+    assert finding.category == "COMMAND_INJECTION"
+    assert finding.file_path == "app/net.py"
+    assert finding.symbol == "ping_host"
+    assert finding.scanner == "aegis-ast+bandit"
+
+
 @pytest.mark.parametrize(
     "query_expression",
     [
@@ -54,3 +66,13 @@ def test_custom_rule_ignores_bound_parameters() -> None:
     )
 
     assert scan_source(source, "app/users.py") == ()
+
+
+def test_custom_rule_ignores_command_argv_without_shell() -> None:
+    source = (
+        "import subprocess\n"
+        "def ping(host):\n"
+        "    return subprocess.run(['ping', host], shell=False)\n"
+    )
+
+    assert scan_source(source, "app/net.py") == ()

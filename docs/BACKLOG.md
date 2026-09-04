@@ -164,7 +164,7 @@ The whole loop runs end to end with a **stub** brain. No LLM yet.
       **Done when:** a real PR exists on a real repository.
 - [x] **P5-2 · PR body** — annotated diff, evidence table, reviewer brief,
       "what was NOT proven". §13B, §15
-- [ ] **P5-3 · Command-injection adapter + `cmd_retry` benchmark.** §16
+- [x] **P5-3 · Command-injection adapter + `cmd_retry` benchmark.** §16
       If this is not mostly a copy of the SQL path, the adapter interface is
       wrong — stop and fix the interface.
 - [ ] **P5-4 · Benchmark cases 5–10** and `scripts/run_benchmark.py`. §16

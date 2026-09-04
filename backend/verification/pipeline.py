@@ -3,8 +3,8 @@ from __future__ import annotations
 import asyncio
 import json
 from pathlib import Path
-from typing import Literal
 
+from backend.adapters import select_adapter
 from backend.core.models import CandidateEvidence, EvidenceResult, Finding
 from backend.sandbox.runner import SandboxRunner
 
@@ -22,7 +22,7 @@ class SandboxCandidateVerifier:
         run = await asyncio.to_thread(
             self.runner.run,
             workspace,
-            adapter=_adapter_for(finding),
+            adapter=select_adapter(finding),
         )
         return bool(run.report.attack.get("exploited"))
 
@@ -37,7 +37,7 @@ class SandboxCandidateVerifier:
         run = await asyncio.to_thread(
             self.runner.run,
             workspace,
-            adapter=_adapter_for(finding),
+            adapter=select_adapter(finding),
         )
         attack = run.report.attack
         payloads = attack.get("payloads", [])
@@ -93,11 +93,14 @@ class SandboxCandidateVerifier:
 
         bandit_results = run.report.bandit.get("results", [])
         findings = bandit_results if isinstance(bandit_results, list) else []
+        original_bandit_rule = (
+            "B602" if finding.category == "COMMAND_INJECTION" else "B608"
+        )
         original_findings = [
             result
             for result in findings
             if isinstance(result, dict)
-            and result.get("test_id") == "B608"
+            and result.get("test_id") == original_bandit_rule
             and _normalized_path(result.get("filename")) == finding.file_path
         ]
         new_high_findings = [
@@ -165,12 +168,6 @@ class SandboxCandidateVerifier:
             if not self._image_ready:
                 await asyncio.to_thread(self.runner.ensure_image)
                 self._image_ready = True
-
-
-def _adapter_for(finding: Finding) -> Literal["sql_injection"]:
-    if finding.category == "SQL_INJECTION":
-        return "sql_injection"
-    raise ValueError(f"unsupported finding category: {finding.category}")
 
 
 def _normalized_path(value: object) -> str:

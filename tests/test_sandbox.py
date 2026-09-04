@@ -39,3 +39,19 @@ def test_docker_sql_retry_returns_evidence_even_when_candidate_loses() -> None:
     }
     assert not (candidate / "_aegis_runtime").exists()
     assert tree_hash(candidate) == before
+
+
+def test_docker_cmd_retry_uses_command_injection_adapter() -> None:
+    candidate = PROJECT_ROOT / "benchmarks" / "cmd_retry"
+    before = tree_hash(candidate)
+    runner = SandboxRunner(PROJECT_ROOT)
+    runner.ensure_image()
+
+    run = runner.run(candidate, adapter="command_injection")
+
+    assert run.exit_code == 0
+    assert run.report.attack["adapter"] == "command_injection"
+    assert run.report.attack["exploited"] is True
+    assert run.report.attack["benign_preserved"] is True
+    assert run.report.pytest["summary"]["passed"] == 3
+    assert tree_hash(candidate) == before
