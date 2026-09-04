@@ -54,7 +54,7 @@ Prove the vulnerability is real and detectable before writing any agent code.
 
 The whole loop runs end to end with a **stub** brain. No LLM yet.
 
-- [ ] **P2-1 · Storage.** SQLite schema from §07, WAL enabled, migrations as
+- [x] **P2-1 · Storage.** SQLite schema from §07, WAL enabled, migrations as
       numbered SQL, `repositories.py` with all SQL confined to it.
       **Done when:** round-trip test creates a job, an attempt and events.
 
