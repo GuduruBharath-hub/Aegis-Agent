@@ -58,7 +58,7 @@ The whole loop runs end to end with a **stub** brain. No LLM yet.
       numbered SQL, `repositories.py` with all SQL confined to it.
       **Done when:** round-trip test creates a job, an attempt and events.
 
-- [ ] **P2-2 · State machine.** `states.py` with the enum and the `LEGAL`
+- [x] **P2-2 · State machine.** `states.py` with the enum and the `LEGAL`
       transition table from §08. Illegal transitions raise.
       **Done when:** a test asserts an illegal transition raises, and that a
       terminal `final_decision` cannot be overwritten.

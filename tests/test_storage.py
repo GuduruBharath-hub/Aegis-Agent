@@ -122,29 +122,20 @@ def test_job_round_trip(tmp_path: Path) -> None:
         base_sha=job.base_sha,
         mode=job.mode,
         scenario=job.scenario,
-        state="completed",
-        current_attempt=1,
+        state="finding_identified",
+        current_attempt=job.current_attempt,
         max_attempts=job.max_attempts,
         sandbox_tier=job.sandbox_tier,
-        final_decision="verified",
-        final_reason="all gates passed",
         branch_name=job.branch_name,
-        pr_url="https://github.com/org/repo-demo/pull/42",
-        pr_number=42,
         created_at=job.created_at,
         updated_at=job.updated_at,
-        completed_at="2026-09-04T12:00:00Z",
     )
     job_repo.update(updated_job)
 
     retrieved_updated = job_repo.get("job_test_01")
     assert retrieved_updated is not None
-    assert retrieved_updated.state == "completed"
-    assert retrieved_updated.current_attempt == 1
-    assert retrieved_updated.final_decision == "verified"
-    assert retrieved_updated.final_reason == "all gates passed"
-    assert retrieved_updated.pr_number == 42
-    assert retrieved_updated.completed_at == "2026-09-04T12:00:00Z"
+    assert retrieved_updated.state == "finding_identified"
+    assert retrieved_updated.final_decision is None
 
     jobs = job_repo.list_all()
     assert len(jobs) == 1

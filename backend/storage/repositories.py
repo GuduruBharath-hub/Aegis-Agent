@@ -5,6 +5,7 @@ import hashlib
 import sqlite3
 
 from backend.core.models import Artifact, Attempt, BenchmarkRun, Event, Finding, Job
+from backend.core.states import validate_job_update
 
 
 # --- Pragmas ---
@@ -294,6 +295,11 @@ class JobRepo:
         return _row_to_job(row)
 
     def update(self, job: Job) -> Job:
+        current = self.get(job.id)
+        if current is None:
+            raise KeyError(f"job not found: {job.id}")
+        validate_job_update(current, job)
+
         self._conn.execute(
             SQL_UPDATE_JOB,
             (
