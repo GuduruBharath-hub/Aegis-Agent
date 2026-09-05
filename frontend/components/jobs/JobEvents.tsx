@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useRef, useEffect } from 'react';
-import { formatDate } from '@/lib/utils';
 import type { JobEvent } from '@/types/job';
 
 interface JobEventsProps {

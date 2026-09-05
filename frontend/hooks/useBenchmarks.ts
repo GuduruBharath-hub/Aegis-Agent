@@ -59,7 +59,9 @@ export function useBenchmarks(): UseBenchmarksResult {
   }, []);
 
   useEffect(() => {
-    fetchData();
+    // The effect synchronizes local state with the benchmark API.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void fetchData();
   }, [fetchData]);
 
   useEffect(() => {

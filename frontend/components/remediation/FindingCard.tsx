@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { FileCode, ExternalLink } from 'lucide-react';
+import { FileCode } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { capitalize, formatRelativeTime } from '@/lib/utils';
 import type { Finding } from '@/types/finding';

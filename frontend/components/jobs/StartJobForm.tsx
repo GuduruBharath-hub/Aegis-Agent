@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import axios from 'axios';
 import { Loader2, Send, GitBranch } from 'lucide-react';
 import { startJob } from '@/lib/jobs';
 import type { Job } from '@/types/job';
@@ -25,8 +26,11 @@ export const StartJobForm: React.FC<StartJobFormProps> = ({ onJobStarted, onCanc
     try {
       const job = await startJob({ repo_url: repoUrl.trim(), branch: branch.trim() || 'main' });
       onJobStarted(job);
-    } catch (err: any) {
-      setError(err?.response?.data?.detail ?? 'Failed to start job');
+    } catch (err: unknown) {
+      const apiDetail = axios.isAxiosError<{ detail?: string }>(err)
+        ? err.response?.data?.detail
+        : undefined;
+      setError(apiDetail ?? (err instanceof Error ? err.message : 'Failed to start job'));
     } finally {
       setLoading(false);
     }

@@ -6,7 +6,6 @@ import { Header } from '@/components/layout/Header';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { JobStatusBadge } from '@/components/jobs/JobStatusBadge';
 import { JobEvents } from '@/components/jobs/JobEvents';
-import { JobTimeline } from '@/components/jobs/JobTimeline';
 import { AttemptCard } from '@/components/jobs/AttemptCard';
 import { FinalDecision } from '@/components/remediation/FinalDecision';
 import { Progress } from '@/components/ui/Progress';
@@ -179,7 +178,7 @@ export default function JobDetailPage() {
         {/* Tabs */}
         <div style={{ display: 'flex', gap: '6px', marginBottom: '16px' }}>
           <button style={tabStyle('stream')} onClick={() => setActiveTab('stream')}>
-            <Wifi size={13} /> Live Stream
+            <Wifi size={13} /> {job.mode === 'replay' ? 'Recorded Stream' : 'Live Stream'}
             {streamEvents.length > 0 && (
               <span style={{ background: '#d4af37', color: '#000', borderRadius: '10px', padding: '0 6px', fontSize: '0.68rem', fontWeight: 700 }}>
                 {streamEvents.length}

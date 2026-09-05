@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
-import { percentage } from '@/lib/utils';
 import { Progress } from '@/components/ui/Progress';
 import type { IntegrityResult } from '@/types/audit';
 

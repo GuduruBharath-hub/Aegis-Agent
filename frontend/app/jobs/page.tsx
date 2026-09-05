@@ -10,7 +10,7 @@ import { Modal } from '@/components/ui/Modal';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { getJobs } from '@/lib/jobs';
 import { formatRelativeTime, extractRepoName } from '@/lib/utils';
-import type { JobSummary, Job } from '@/types/job';
+import type { JobSummary } from '@/types/job';
 import { Plus, Search, RefreshCw, GitBranch } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -36,7 +36,11 @@ export default function JobsPage() {
     }
   };
 
-  useEffect(() => { fetchJobs(); }, [filter]);
+  useEffect(() => {
+    // This effect starts an external API read; its state changes describe that request.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void fetchJobs();
+  }, [filter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const filtered = jobs.filter((j) =>
     !search || j.repo_name.toLowerCase().includes(search.toLowerCase())

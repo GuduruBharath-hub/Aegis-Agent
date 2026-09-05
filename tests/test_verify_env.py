@@ -6,7 +6,9 @@ import subprocess
 from time import perf_counter
 
 import pytest
+from pydantic import SecretStr
 
+from backend.core.config import ModelSlot
 from backend.core.replay import ReplayArchive, ReplaySummary
 from scripts import verify_env
 
@@ -77,6 +79,44 @@ def test_check_result_render_is_stable_for_demo_output() -> None:
     result = verify_env.CheckResult("ok", "docker daemon reachable", "sandbox tier: DOCKER")
 
     assert result.render() == "[ok]   docker daemon reachable -> sandbox tier: DOCKER"
+
+
+def test_feather_probe_uses_configured_primary_with_bounded_settings(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    primary = ModelSlot(
+        label="primary",
+        api_key=SecretStr("secret"),
+        base_url="https://provider.example/v1",
+        model="configured-primary",
+        max_tokens=8_000,
+        temperature=0.0,
+        timeout_seconds=60.0,
+        concurrency=1,
+        transport_retries=2,
+    )
+    captured: dict[str, object] = {}
+
+    class FakePatchModel:
+        def __init__(self, settings: ModelSlot) -> None:
+            captured["settings"] = settings
+
+        async def generate_patch(self, *args: object, **kwargs: object) -> object:
+            del args, kwargs
+            return object()
+
+    monkeypatch.setattr(verify_env, "load_model_chain", lambda: (primary,))
+    monkeypatch.setattr(verify_env, "FeatherPatchModel", FakePatchModel)
+
+    result = asyncio.run(verify_env.check_feather())
+    used = captured["settings"]
+
+    assert isinstance(used, ModelSlot)
+    assert used.model == "configured-primary"
+    assert used.timeout_seconds == verify_env.MODEL_OPERATION_TIMEOUT
+    assert used.transport_retries == 0
+    assert result.level == "ok"
+    assert "configured-primary" in result.detail
 
 
 def test_remote_probe_is_bounded_by_wall_clock(monkeypatch: pytest.MonkeyPatch) -> None:

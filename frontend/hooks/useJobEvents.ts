@@ -44,7 +44,9 @@ export function useJobEvents(
   }, [jobId, page, pageSize, level]);
 
   useEffect(() => {
-    fetchEvents();
+    // The effect synchronizes local state with the durable event API.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void fetchEvents();
   }, [fetchEvents]);
 
   useEffect(() => {

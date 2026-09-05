@@ -7,7 +7,6 @@ import { Header } from '@/components/layout/Header';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { FindingCard } from '@/components/remediation/FindingCard';
 import { PatchViewer } from '@/components/remediation/PatchViewer';
-import { ValidationResults } from '@/components/remediation/ValidationResults';
 import { SecurityGates } from '@/components/remediation/SecurityGates';
 import { RemediationSummary } from '@/components/remediation/RemediationSummary';
 import { EmptyState } from '@/components/ui/EmptyState';

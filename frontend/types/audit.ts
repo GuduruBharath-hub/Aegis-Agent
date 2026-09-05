@@ -1,4 +1,4 @@
-import type { GateStatus, ValidationStatus, Severity } from './api';
+import type { GateStatus, Severity } from './api';
 
 export interface AuditDossier {
   id: string;

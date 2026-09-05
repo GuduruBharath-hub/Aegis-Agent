@@ -29,14 +29,18 @@ export function useJob(id: string, pollInterval = 5000): UseJobResult {
     }
   }, [id]);
 
+  const jobStatus = job?.status;
+
   useEffect(() => {
     if (!id) return;
-    fetchJob();
+    // The effect synchronizes local state with the job API.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void fetchJob();
 
     // Only poll if job is in an active state
     const shouldPoll = () => {
       const activeStatuses = ['pending', 'running'];
-      return job ? activeStatuses.includes(job.status) : true;
+      return jobStatus ? activeStatuses.includes(jobStatus) : true;
     };
 
     if (!pollInterval || !shouldPoll()) return;
@@ -46,7 +50,7 @@ export function useJob(id: string, pollInterval = 5000): UseJobResult {
     }, pollInterval);
 
     return () => clearInterval(interval);
-  }, [id, fetchJob, pollInterval, job?.status]);
+  }, [id, fetchJob, pollInterval, jobStatus]);
 
   return { job, loading, error, refetch: fetchJob };
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { CheckCircle2, Clock, XCircle, Circle, Loader2 } from 'lucide-react';
+import { CheckCircle2, XCircle, Circle, Loader2 } from 'lucide-react';
 import { formatDate, formatDuration } from '@/lib/utils';
 import type { JobAttempt } from '@/types/job';
 

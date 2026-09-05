@@ -56,9 +56,11 @@ export function useJobStream(jobId: string, maxEvents = 500): UseJobStreamResult
 
   // Auto-connect when jobId changes
   useEffect(() => {
+    // Opening EventSource is the external subscription this effect owns.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (jobId) connect();
     return disconnect;
-  }, [jobId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [jobId, connect, disconnect]);
 
   return { events, status, connect, disconnect, clearEvents };
 }

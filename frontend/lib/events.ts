@@ -15,8 +15,9 @@ export interface EventSourceOptions {
 
 const EVENT_TYPES = [
   'job_created', 'scan_started', 'scan_completed', 'finding_detected',
-  'reproduction_confirmed', 'context_built', 'patch_generated',
+  'reproduction_started', 'reproduction_confirmed', 'context_built', 'patch_generated',
   'policy_passed', 'policy_failed', 'sandbox_started', 'security_passed',
+  'sandbox_completed',
   'security_failed', 'regression_passed', 'regression_failed',
   'post_scan_passed', 'post_scan_failed', 'integrity_passed',
   'integrity_failed', 'explain_passed', 'explain_failed',

@@ -34,6 +34,19 @@ out/
 dist/
 .turbo/
 
+# --- aegis security ---
+# Invariant 3: hidden tests never enter a workspace the model can read
+aegis_hidden_tests/
+
+# --- transient logs ---
+benchmark-run.log
+*.log
+
+# --- editor / tool artifacts ---
+.claude/
+CLAUDE.md
+frontend/CLAUDE.md
+
 # --- os / editor ---
 .DS_Store
 Thumbs.db

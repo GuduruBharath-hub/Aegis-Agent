@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import json
 import os
 from pathlib import Path
@@ -23,7 +23,6 @@ from pydantic import ValidationError
 
 from backend.agent.feather_client import FeatherPatchModel
 from backend.core.config import (
-    FeatherSettings,
     GitHubSettings,
     ModelChainError,
     RuntimeSettings,
@@ -41,7 +40,8 @@ Level = Literal["ok", "warn", "fail"]
 # A preflight is run minutes before a demo, so every probe is bounded and the
 # total is bounded too. An unbounded readiness check is worse than no check:
 # it fails by hanging, at exactly the moment nobody can afford to wait.
-REMOTE_PROBE_TIMEOUT = 25.0
+MODEL_OPERATION_TIMEOUT = 40.0
+REMOTE_PROBE_TIMEOUT = 45.0
 DOCKER_COMMAND_TIMEOUT = 10.0
 GIT_PROBE_TIMEOUT = 5.0
 BENCHMARK_CASE_COUNT = 10
@@ -127,11 +127,14 @@ def check_model_chain() -> CheckResult:
 
 async def check_feather() -> CheckResult:
     try:
-        settings = FeatherSettings().model_copy(
-            update={"timeout_seconds": 20.0, "transport_retries": 0}
+        primary = load_model_chain()[0]
+        settings = replace(
+            primary,
+            timeout_seconds=min(primary.timeout_seconds, MODEL_OPERATION_TIMEOUT),
+            transport_retries=0,
         )
-    except ValidationError:
-        return CheckResult("fail", "FEATHER_API_KEY set", "configuration missing or invalid")
+    except (ModelChainError, ValueError):
+        return CheckResult("fail", "model provider configured", "configuration missing or invalid")
 
     started = perf_counter()
     try:

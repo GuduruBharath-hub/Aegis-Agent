@@ -1,9 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Shield, Award, Clock } from 'lucide-react';
-import { formatDate, formatDuration } from '@/lib/utils';
-import { Progress } from '@/components/ui/Progress';
+import { formatDate } from '@/lib/utils';
 import { RemediationSummary } from '@/components/remediation/RemediationSummary';
 import type { AuditDossier } from '@/types/audit';
 
